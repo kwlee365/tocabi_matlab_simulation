@@ -1,6 +1,6 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Author: JongHun Choe (ksks6281@kaist.ac.kr, (or ksks6281@gmail.com))
-%%% Date: 2023. 05. 11. 
+%%% Author: Kwanwoo Lee(kwlee365@snu.ac.kr)
+%%% Date: 2024. 11. 20. 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %--- Path setting
@@ -15,7 +15,7 @@ addpath(genpath(folder));
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Step information
 number_of_step = 8;             % Number of steps
-step_length = 0.15;             % Step stride
+step_length = 0.20;             % Step stride
 step_width = PARA.pelvis_width; % Step width
 step_time = 0.7;                % Step period
 L_or_R = 1;                     % First swing foot: 1: Left foot / -1: Right foot
@@ -25,10 +25,7 @@ Impact_force_x = 200;             % [N]: x-dir impact force
 Impact_force_y = 0;             % [N]: y-dir impact force
 Impact_duration = 0.05;         % [s]: Impact duration
 Impact_timing = 0.0;            % [s]: Timing of impact
-Impact_step_number = 3;         
-% Disturbance with [Impact_force_x; Impact_force_y] magnitude and
-% [Impact_duration] duration is applied at [Impact_timing] [s] of
-% [Impact_step_number]th step.
+Impact_step_number = 3;      
 
 % Flags
 flag_HORIZON_CHANGED = 1;       % Set to 1 if the number of MPC horizon is changed
@@ -42,7 +39,8 @@ flag_PLOT = 1;                  % Set to 1 to show plots
 %--- Get gradients and hessians with CasADI
 if flag_HORIZON_CHANGED == 1
     disp(['Now creating gradients and hessians with CasADI for the MPC horizon: ', num2str(PARA.H), '...']);
-    getGradHessWithCasadi();
+    % getGradHessWithCasadi();
+    disp(['CasADI function generation done.']);
 end
 %---
 
@@ -53,18 +51,12 @@ dx = 0; dy = 0;
 %---
 
 %--- SDB(Step Data Buffer)
-p_ref_total = zmpTotal(number_of_step, step_length, step_width, L_or_R);
-p_total = zmpTotal(number_of_step, step_length, step_width, L_or_R);
-
-T_step_ref_total = stepTimeTotal(number_of_step, step_time);
-T_step_total = stepTimeTotal(number_of_step, step_time);
+c_ref_total = stanceFootRefTotal(number_of_step, step_length, step_width, L_or_R);   % stance foot position
 %---
 
 %--- Initialization
 t = 0; t_step = 0;
 i = 1; i_max = 1E06;
-T_step = T_step_total(:, 1);
-T_step_ref = T_step_ref_total(:, 1);
 step_phase = 1;
 iter_error = 0;
 % Flags
@@ -72,28 +64,21 @@ flag_STEP_CHANGE = 0;
 flag_EXIT = 0;
 flag_PAUSE = 0;
 flag_ERROR = 0;
-% Preview control
-[Gi, Gx, Gp] = findPreviewGain(PARA.T_preview, PARA.dt, PARA.zc);
-[Gi_MPC, Gx_MPC, Gp_MPC] = findPreviewGain(PARA.T_preview, PARA.dt_MPC, PARA.zc);
-p_err_sum_x = 0; p_err_sum_y = 0;
-p_err_sum_x_ref = 0; p_err_sum_y_ref = 0;
-% ZMP
-p_des = p_total(:, 1);
 % COM
 COM = [0; 0; PARA.zc];
 dCOM = [0; 0; 0];
 COM_prev_step = COM;
 dCOM_prev_step = dCOM;
-xi_err = [0; 0];
-% COM ref.
+% COM ref
 COM_ref = [0; 0; PARA.zc];
 dCOM_ref = [0; 0; 0];
-ddCOM_ref = [0; 0; 0];
+% COM err
+COM_err = [0;0;0];
+dCOM_err = [0;0;0];
 % Foot
-Foot_state = 2; % DSP
+Foot_state = 1; % DSP
 LF = [0;  0.5*PARA.pelvis_width; 0]; LF_prev = LF;
 RF = [0; -0.5*PARA.pelvis_width; 0]; RF_prev = RF;
-dU_x_prev = 0; dU_y_prev = 0;
 color_LF = [0.9290 0.6940 0.1250];
 color_RF = [0.6 0.6 0.6];
 % Torso
@@ -102,24 +87,13 @@ dtheta = [0; 0];
 %---
 
 %--- Data save
-t_stored = zeros(1, i_max);
-t_step_stored = zeros(1, i_max);
-impact_force_stored = zeros(2, i_max);
-T_step_stored = zeros(1, i_max);
-xi_err_stored = zeros(3, i_max);
-xi_stored = zeros(3, i_max);
 COM_stored = zeros(3, i_max);
 dCOM_stored = zeros(3, i_max);
-p_c_stored = zeros(3, i_max); 
-dU_stored = zeros(2, i_max); 
-db_stored = zeros(2, i_max); 
-dT_stored = zeros(1, i_max); 
-ddtheta_result_stored = zeros(2, i_max); 
 LF_stored = zeros(3, i_max);
 RF_stored = zeros(3, i_max);
 ticktock_stored = zeros(1, i_max);
 %---
-
+%%
 %--- World generation
 if ishandle(10)
     close(10)
@@ -150,7 +124,6 @@ while 1
         dx = 0; dy = 0;
         view([ax, ay]);
         set(axe,'XLim',[-0.5+COM(1) 0.5+COM(1)],'YLim',[-0.5+COM(2) 0.5+COM(2)],'ZLim',[-0.02 1.0], 'DataAspectRatio', [1 1 1]);
-%         set(axe,'XLim',[-0.5+COM(1) 0.5+COM(1)],'YLim',[-0.5 0.5],'ZLim',[-0.02 1.0], 'DataAspectRatio', [1 1 1]);
     end
 
     % Step change
@@ -158,10 +131,9 @@ while 1
     if flag_STEP_CHANGE == 1
         % Pattern shifting
         for j = step_phase+1:number_of_step+3
-            p_ref_total(1, j) = p_ref_total(1, j) + dU(1);
-            p_ref_total(2, j) = p_ref_total(2, j) + dU(2);
+            c_ref_total(1, j) = c_ref_total(1, j) + dc(1);
+            c_ref_total(2, j) = c_ref_total(2, j) + dc(2);
         end   
-        COM_ref = COM_ref + [dU(1); dU(2); 0];
 
         % Update step phase
         step_phase = step_phase + 1;
@@ -171,17 +143,6 @@ while 1
 
         % Update foot state
         Foot_state = (-1)*Foot_state;
-        if step_phase == 2
-            Foot_state = L_or_R;
-        elseif step_phase == number_of_step + 3
-            Foot_state = 2;
-        end
-
-        % Update step time
-        if step_phase <= number_of_step + 3
-            T_step_ref = T_step_ref_total(1, step_phase);
-            T_step = T_step_total(:, step_phase);
-        end
 
         % Reset t_step & flag
         t_step = 0;
@@ -189,7 +150,7 @@ while 1
     end
 
     % Exit flag
-    if (norm(xi_err) > 1.0)
+    if (norm(COM_err) > 1.0)
         disp('Walking fail!!');
         break;
     elseif (flag_EXIT == 1)
@@ -198,27 +159,27 @@ while 1
         break;
     end
 
-    % Disturbance
-    disturbance_duration = Impact_duration; % [sec]
-    disturbance_timing = Impact_timing;
-    if (step_phase == Impact_step_number + 1) && ((t_step >= disturbance_timing))
-        flag_ERROR = 1;
-    end
-    if (flag_ERROR == 1) && (iter_error > (Impact_duration/PARA.dt))
-        flag_ERROR = 0;
-    end
-    if flag_ERROR == 1
-        disturbance_magnitude = [Impact_force_x; Impact_force_y; 0]; % [N]
-        ddCOM_err = disturbance_magnitude/PARA.m_all;
-        dCOM_err = ddCOM_err.*PARA.dt;
-        COM_err = dCOM_err.*PARA.dt + 0.5.*ddCOM_err.*PARA.dt.*PARA.dt;
-        COM = COM + COM_err;
-        dCOM = dCOM + dCOM_err;
-        iter_error = iter_error + 1;
-    else     
-        disturbance_magnitude = [0; 0; 0]; % [N]
-        ddCOM_err = [0; 0; 0];
-    end
+    % % Disturbance
+    % disturbance_duration = Impact_duration; % [sec]
+    % disturbance_timing = Impact_timing;
+    % if (step_phase == Impact_step_number + 1) && ((t_step >= disturbance_timing))
+    %     flag_ERROR = 1;
+    % end
+    % if (flag_ERROR == 1) && (iter_error > (Impact_duration/PARA.dt))
+    %     flag_ERROR = 0;
+    % end
+    % if flag_ERROR == 1
+    %     disturbance_magnitude = [Impact_force_x; Impact_force_y; 0]; % [N]
+    %     ddCOM_err = disturbance_magnitude/PARA.m_all;
+    %     dCOM_err = ddCOM_err.*PARA.dt;
+    %     COM_err = dCOM_err.*PARA.dt + 0.5.*ddCOM_err.*PARA.dt.*PARA.dt;
+    %     COM = COM + COM_err;
+    %     dCOM = dCOM + dCOM_err;
+    %     iter_error = iter_error + 1;
+    % else     
+    %     disturbance_magnitude = [0; 0; 0]; % [N]
+    %     ddCOM_err = [0; 0; 0];
+    % end
 
     % Reference    
     [COM_ref_next, dCOM_ref_next, ddCOM_ref_next, p_err_sum_x_ref_next, p_err_sum_y_ref_next] = previewControl(t_step, step_phase, p_ref_total, T_step_ref_total, Gi, Gx, Gp, PARA.A_preview, PARA.B_preview, PARA.C_preview, COM_ref, dCOM_ref, ddCOM_ref, p_err_sum_x_ref, p_err_sum_y_ref);      

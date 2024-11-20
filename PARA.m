@@ -4,7 +4,7 @@ classdef PARA < handle
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% User Input %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         H = 20; % : Number of horizons
-        dt_MPC = 0.025; % [s] : sampling time of MPC        
+        dt_MPC = 0.01; % [s] : sampling time of MPC        
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -18,78 +18,30 @@ classdef PARA < handle
         % Robot
         pelvis_width = 0.22;
         zc = 0.74;
-        w = sqrt(PARA.g/PARA.zc);
-        Foot_length = 0.18;
-        Foot_width = 0.13;
+        Foot_length = 0.30;
+        Foot_width  = 0.13;
         Foot_up_max = 0.12;
-        V_x_max = 0.7; V_x_min = -0.7;
-        V_y_max = 0.6; V_y_min = -0.6;
         J_x = 2;
         J_y = 2;
-        kp = 6;
-        kd = 4;
-        
-        % Preview control
-        T_preview = 1.6;
-        NL = PARA.T_preview/PARA.dt;
-        A_preview = [1, PARA.dt, (PARA.dt*PARA.dt)/2;
-                     0, 1, PARA.dt; 
-                     0, 0, 1];
-        B_preview = [(PARA.dt*PARA.dt*PARA.dt)/6; 
-                     (PARA.dt*PARA.dt)/2; 
-                      PARA.dt];
-        C_preview = [1, 0, -(1/(PARA.w^2))];
-        
-        NL_MPC = PARA.T_preview/PARA.dt_MPC;
-        A_preview_MPC = [1, PARA.dt_MPC, (PARA.dt_MPC*PARA.dt_MPC)/2;
-                         0, 1, PARA.dt_MPC; 
-                         0, 0, 1];
-        B_preview_MPC = [(PARA.dt_MPC*PARA.dt_MPC*PARA.dt_MPC)/6; 
-                         (PARA.dt_MPC*PARA.dt_MPC)/2; 
-                         PARA.dt_MPC];
-        C_preview_MPC = [1, 0, -(1/(PARA.w^2))];
-        
-        % NMPC
-        T_scale = PARA.dt_MPC/PARA.dt;
+ 
+        % MPC
+        T_scale  = PARA.dt_MPC/PARA.dt;
         T_window = PARA.dt_MPC * PARA.H;
         N_window = PARA.T_window/PARA.dt;
-        state_length = 2; % [xi_err_x; xi_err_y]
-        input_length = 9; % [p_c_x; p_c_y; dU_x; dU_y; db_x; db_y; dT; ddtheta_x; ddtheta_y];   
-
-        w_dT = 100;
-
-        w_xi_err_x = 1;
-        w_p_c_x = 10;
-        w_dU_x = 1;
-        w_db_x = 1000;
-        w_ddtheta_y = 0.010;
+        state_length = 15; % [p_c; dp_c_x; theta; dtheta; c] in R^{15}
+        input_length = 6;  % [F, m] in R^{9}
         
-        w_xi_err_y = 1;
-        w_p_c_y = 50;
-        w_dU_y = 100;
-        w_db_y = 1000;
-        w_ddtheta_x = 0.10; 
+        mu = 0.7;
 
-        p_c_x_max =  0.5*PARA.Foot_length;
-        p_c_y_max =  0.5*PARA.Foot_width;
-        p_c_x_min = -0.5*PARA.Foot_length;
-        p_c_y_min = -0.5*PARA.Foot_width;
-
-        dU_x_max =  0.3;
-        dU_y_max =  0.2;
-        dU_x_min = -0.3;
-        dU_y_min = -0.2;
-        dT_max = 0.0;
-        dT_min = -0.2;
+        dc_x_max =  0.2;
+        dc_y_max =  0.2;
+        dc_x_min = -0.2;
+        dc_y_min = -0.2;
         
-        theta_x_min = -40*PARA.D2R;        theta_x_max =  40*PARA.D2R;
-        theta_y_min = -30*PARA.D2R;        theta_y_max =  15*PARA.D2R;
-        dtheta_x_max = 200*PARA.D2R;
-        dtheta_y_max = 200*PARA.D2R;
-        ddtheta_x_max = 1000*PARA.D2R;
-        ddtheta_y_max = 1000*PARA.D2R;
-        ddtheta_x_min = -1000*PARA.D2R;
-        ddtheta_y_min = -1000*PARA.D2R;
+        r_x_max = 0.2;
+        r_x_min =-0.2;
+        r_y_max = 0.2;
+        r_y_min =-0.2;
 
         % Kinematics - from Gazelle`s data
         m_PEL = 15;
