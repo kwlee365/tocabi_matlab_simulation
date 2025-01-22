@@ -1,258 +1,181 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% J. Choe, J. -H. Kim, S. Hong, J. Lee and H. -W. Park, 
-%%% "Seamless Reaction Strategy for Bipedal Locomotion Exploiting Real-Time Nonlinear Model Predictive Control," 
-%%% in IEEE Robotics and Automation Letters, 
-%%% vol. 8, no. 8, pp. 5031-5038, Aug. 2023, 
-%%% doi: 10.1109/LRA.2023.3291273.
-%%%
-%%% <Reference>
-%%% https://www.youtube.com/watch?v=JI-AyLv68Xs
-%%% https://web.casadi.org/docs/
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-addpath('casadi-linux-matlabR2014b-v3.5.5')
+addpath('casadi-3.6.7-linux64-matlab2018b')
+import casadi.*
 
 PARA = PARA;
 
-import casadi.*
-
-%--- Symbolic variables
-
-% MPC variables
 H = PARA.H;
-dt = SX.sym('dt');  % MPC sampling time
-dt_real = SX.sym('dt_real');  % Controller sampling time
 state_length = PARA.state_length;
 input_length = PARA.input_length;
 
-gain_state_horizon = SX.sym('gain_state_horizon', H*state_length);
-gain_input_horizon = SX.sym('gain_input_horizon', H*input_length);
-
-% LIPFM dynamics properties
-g = SX.sym('g');
-w = SX.sym('w');
 m = SX.sym('m');
-t_step = SX.sym('t_step');
-J_x = SX.sym('J_x');
-J_y = SX.sym('J_y');
+g = SX.sym('g');
+I = SX.sym('I', 3, 3);
+I_inv = inv(I);
 
-% LIPFM constraints parameters
-V_x_max = SX.sym('V_x_max'); V_x_min = SX.sym('V_x_min');
-V_y_max = SX.sym('V_y_max'); V_y_min = SX.sym('V_y_min');
+mu = SX.sym('mu');  % FRICTION COEFFICIENT
+dT = SX.sym('dT');  % MPC TIMESTEP
 
-p_c_x_max = SX.sym('p_c_x_max'); p_c_x_min = SX.sym('p_c_x_min');
-p_c_y_max = SX.sym('p_c_y_max'); p_c_y_min = SX.sym('p_c_y_min');
+H = PARA.H;
+state_length = PARA.state_length;
+input_length = PARA.input_length;
 
-dU_x_max = SX.sym('dU_x_max'); dU_x_min = SX.sym('dU_x_min');
-dU_y_max = SX.sym('dU_y_max'); dU_y_min = SX.sym('dU_y_min');
-dU_x_prev = SX.sym('dU_x_prev'); dU_y_prev = SX.sym('dU_y_prev');
+rL_ref_horizon = SX.sym('rL_ref_horizon', 3, H);
+rR_ref_horizon = SX.sym('rR_ref_horizon', 3, H);
 
-dT_max = SX.sym('dT_max'); dT_min = SX.sym('dT_min');
+theta_ref_horizon = SX.sym('theta_ref_horizon', 3, H);
 
-ddtheta_x_max = SX.sym('ddtheta_x_max'); ddtheta_x_min = SX.sym('ddtheta_x_min');
-ddtheta_y_max = SX.sym('ddtheta_y_max'); ddtheta_y_min = SX.sym('ddtheta_y_min');
+etaL_ref_horizon = SX.sym('etaL_ref_horizon', H);
+etaR_ref_horizon = SX.sym('etaR_ref_horizon', H);
 
-xi_ref_horizon = SX.sym('xi_ref_horizon', 3, H);
-T_step_ref_horizon = SX.sym('T_step_ref_horizon', H);
+% STATE AND CONTROL INPUTS
+X     = SX.sym('X',     state_length * H, 1);
+X_ref = SX.sym('X_ref', state_length * H, 1);
+U     = SX.sym('U',     input_length * H, 1);
+U_ref = SX.sym('U_ref', input_length * H, 1);
 
-% Qudratic Program
-X = SX.sym('X', H*state_length);
-X_ref = SX.sym('X_ref', H*state_length);
-U = SX.sym('U', H*input_length);
 v = [X; U];
-x = SX.sym('x', state_length);
-%---
 
-% Cost function
-J = (X-X_ref)'*diag(gain_state_horizon)*(X-X_ref) + U'*diag(gain_input_horizon)*U;
+W_Q = SX.sym('W_Q', H * state_length, 1);
+W_R = SX.sym('W_R', H * input_length, 1);
+
+J = (X - X_ref)' * diag(W_Q) * (X - X_ref) + (U - U_ref)' * diag(W_R) * (U - U_ref);
+
 J_v = jacobian(J, v);
 J_vv = hessian(J, v);
-% figure()
-% spy(J_v)
-% figure()
-% spy(J_vv)
 
-% Equality constraints 1 (6)
-ceq0 = [];
-xi_err = x;
-for i = 1:H
-    p_c_ZMP = [U((i-1)*input_length+1);
-               U((i-1)*input_length+2)];
-    
-    ddtheta = [U((i-1)*input_length+8);
-               U((i-1)*input_length+9)];
-
-    p_c_CMP = [(J_y*ddtheta(2)) / (m*g);
-               (J_x*ddtheta(1)) / (m*g)];
-
-    p_c = p_c_ZMP + p_c_CMP;
-    xi_err_next = (1 + w*dt).*xi_err - (w*dt).*p_c;
-
-    ceq0_sub = X((i-1)*state_length+1:(i-1)*state_length+2) - xi_err_next;  % = 0
-
-    ceq0 = [ceq0; ceq0_sub];
-
-    xi_err = xi_err_next;
-end
-
-% Equality constraints 2 (7)
+% DYNAMICS
 ceq1 = [];
-xi_err_x = x(1);
-xi_err_y = x(2);
 
+x0 = SX.sym('x0', state_length, 1);  % CURRENT ROBOT STATE
+x_k = x0;
 for i = 1:H
+    
+    u_k      = U((input_length * (i-1) + 1):(input_length * i));
 
-    p_c_x = U((i-1)*input_length + 1);
-    p_c_y = U((i-1)*input_length + 2);
-    dU_x  = U((i-1)*input_length + 3);
-    dU_y  = U((i-1)*input_length + 4);
-    db_x  = U((i-1)*input_length + 5);
-    db_y  = U((i-1)*input_length + 6);
-    dT    = U((i-1)*input_length + 7);
-    ddtheta_x  = U((i-1)*input_length + 8);
-    ddtheta_y  = U((i-1)*input_length + 9);
+    rL = rL_ref_horizon(:, i);
+    rR = rR_ref_horizon(:, i);
+    theta = theta_ref_horizon(:, i);
 
-    xi_ref_x = xi_ref_horizon(1,i);
-    xi_ref_y = xi_ref_horizon(2,i);
-    T_step_ref = T_step_ref_horizon(i);
+    etaL = etaL_ref_horizon(i);
+    etaR = etaR_ref_horizon(i);
 
-    T_step = T_step_ref + dT;
+    T = SX.zeros(3, 3);
+    roll = theta(1); pitch = theta(2); yaw = theta(3);
 
-    ceq1_x_sub = dU_x + db_x + xi_ref_x*exp(-w*t_step)*(exp(w*T_step_ref) - exp(w*T_step)) - (1 - exp(w*(T_step - t_step)))*((J_y*ddtheta_y)/(m*g)) - ((xi_err_x- p_c_x)*exp(w*(T_step-t_step)) + p_c_x);
-    ceq1_y_sub = dU_y + db_y + xi_ref_y*exp(-w*t_step)*(exp(w*T_step_ref) - exp(w*T_step)) - (1 - exp(w*(T_step - t_step)))*((J_x*ddtheta_x)/(m*g)) - ((xi_err_y- p_c_y)*exp(w*(T_step-t_step)) + p_c_y);
+    T(1, 1) = cos(pitch) * cos(yaw);
+    T(1, 2) = -sin(yaw);
+    T(2, 1) = cos(pitch) * sin(yaw);
+    T(2, 2) = cos(yaw);
+    T(3, 1) = -sin(pitch);
+    T(3, 3) = 1.0;
 
-    ceq1 = [ceq1;ceq1_x_sub;ceq1_y_sub];
+    T_inv = inv(T);
 
-    xi_err_x = X((i-1)*state_length + 1);
-    xi_err_y = X((i-1)*state_length + 2);
+    % CONTINUOUS SYSTEM
+    A = SX.zeros(state_length, state_length);
+    B = SX.zeros(state_length, input_length);
+    d = SX.zeros(state_length, 1);
+
+    A(1:3, 7:9) = T_inv;
+    A(4:6, 10:12) = SX.eye(3);
+
+    B(7:9, 1:3)   = etaL * I_inv;
+    B(7:9, 4:6)   = etaL * I_inv * skew(rL);
+    B(7:9, 7:9)   = etaR * I_inv;
+    B(7:9, 10:12) = etaR * I_inv * skew(rR);
+
+    B(10:12, 4:6)   = etaL * SX.eye(3) / m;
+    B(10:12, 10:12) = etaR * SX.eye(3) / m;
+
+    d(12) = -g;
+
+    % DISCRETE SYSTEM
+    % Explicit Euler
+    % Ad = SX.eye(state_length) + A * dT;
+    % Bd = B * dT;
+    % dd = d * dT;
+    % 
+    % x_k_next = Ad * x_k + Bd * u_k + dd;
+    % 
+    % 4-th Runge-Kutta Method 
+    k1 = A *  x_k + B * u_k + d;
+    k2 = A * (x_k + 0.5 * dT * k1) + B * u_k + d;
+    k3 = A * (x_k + 0.5 * dT * k2) + B * u_k + d;
+    k4 = A * (x_k + dT * k3) + B * u_k + d;
+
+    x_k_next = x_k + (dT / 6) * (k1 + 2 * k2 + 2 * k3 + k4);
+
+    ceq1_sub = X((state_length * (i-1) + 1):(state_length * i)) - x_k_next;
+    ceq1     = [ceq1; ceq1_sub];
+
+    x_k = x_k_next;
 end
 
-ceq0_v = jacobian(ceq0, v);
+% FRICTION CONE
+cineq1_max = []; cineq1_min = [];
+cineq2_max = []; cineq2_min = [];
+cineq3_max = []; cineq3_min = [];
+cineq4_max = []; cineq4_min = [];
+cineq5_max = []; cineq5_min = [];
+
+f_z_max = SX.sym('f_z_max');
+f_z_min = SX.sym('f_z_min');
+
+footX = SX.sym('footX');    
+footY = SX.sym('footY');    
+
+for i = 1:H
+    mL_x = U(input_length * (i-1) + 1);
+    mL_y = U(input_length * (i-1) + 2);
+    mL_z = U(input_length * (i-1) + 3);
+    fL_x = U(input_length * (i-1) + 4);
+    fL_y = U(input_length * (i-1) + 5);
+    fL_z = U(input_length * (i-1) + 6);
+
+    mR_x = U(input_length * (i-1) + 7);
+    mR_y = U(input_length * (i-1) + 8);
+    mR_z = U(input_length * (i-1) + 9);
+    fR_x = U(input_length * (i-1) + 10);
+    fR_y = U(input_length * (i-1) + 11);
+    fR_z = U(input_length * (i-1) + 12);
+
+    cineq1_max_l_sub = fL_z - f_z_max;
+    cineq1_max_r_sub = fR_z - f_z_max;
+    cineq1_min_l_sub =-fL_z + f_z_min;
+    cineq1_min_r_sub =-fR_z + f_z_min;
+    cineq1_max = [cineq1_max; cineq1_max_l_sub; cineq1_max_r_sub];
+    cineq1_min = [cineq1_min; cineq1_min_l_sub; cineq1_min_r_sub];
+
+    cineq2_max_l_sub = fL_x - mu * fL_z;
+    cineq2_max_r_sub = fR_x - mu * fR_z;
+    cineq2_min_l_sub =-fL_x - mu * fL_z;
+    cineq2_min_r_sub =-fR_x - mu * fR_z;
+    cineq2_max = [cineq2_max; cineq2_max_l_sub; cineq2_max_r_sub];
+    cineq2_min = [cineq2_min; cineq2_min_l_sub; cineq2_min_r_sub];
+
+    cineq3_max_l_sub = fL_y - mu * fL_z;
+    cineq3_max_r_sub = fR_y - mu * fR_z;
+    cineq3_min_l_sub =-fL_y - mu * fL_z;
+    cineq3_min_r_sub =-fR_y - mu * fR_z;
+    cineq3_max = [cineq3_max; cineq3_max_l_sub; cineq3_max_r_sub];
+    cineq3_min = [cineq3_min; cineq3_min_l_sub; cineq3_min_r_sub];
+
+    cineq4_max_l_sub = mL_x - footY * fL_z;
+    cineq4_max_r_sub = mR_x - footY * fR_z;
+    cineq4_min_l_sub =-mL_x - footY * fL_z;
+    cineq4_min_r_sub =-mR_x - footY * fR_z;
+    cineq4_max = [cineq4_max; cineq4_max_l_sub; cineq4_max_r_sub];
+    cineq4_min = [cineq4_min; cineq4_min_l_sub; cineq4_min_r_sub];
+
+    cineq5_max_l_sub = mL_y - footX * fL_z;
+    cineq5_max_r_sub = mR_y - footX * fR_z;
+    cineq5_min_l_sub =-mL_y - footX * fL_z;
+    cineq5_min_r_sub =-mR_y - footX * fR_z;
+    cineq5_max = [cineq5_max; cineq5_max_l_sub; cineq5_max_r_sub];
+    cineq5_min = [cineq5_min; cineq5_min_l_sub; cineq5_min_r_sub];
+end
+
 ceq1_v = jacobian(ceq1, v);
-
-% Inequality constraint 1 (ZMP constraints) (8)
-cineq1_max = [];
-for i = 1:H
-    p_c_x = U((i-1)*input_length + 1);
-    p_c_y = U((i-1)*input_length + 2);
-
-    cineq1_max_x_sub = p_c_x - p_c_x_max;   % <= 0
-    cineq1_max_y_sub = p_c_y - p_c_y_max;
-
-    cineq1_max = [cineq1_max; cineq1_max_x_sub; cineq1_max_y_sub];
-end
-
-cineq1_min = [];
-for i = 1:H
-    p_c_x = U((i-1)*input_length + 1);
-    p_c_y = U((i-1)*input_length + 2);
-
-    cineq1_min_x_sub = -p_c_x + p_c_x_min;   % <= 0
-    cineq1_min_y_sub = -p_c_y + p_c_y_min;
-
-    cineq1_min = [cineq1_min; cineq1_min_x_sub; cineq1_min_y_sub];
-end
-
-% Inequality constraint 2 (Step position constraints) (9-1)
-cineq2_max = [];
-for i = 1:H
-    dU_x = U((i-1)*input_length + 3);
-    dU_y = U((i-1)*input_length + 4);
-
-    cineq2_max_x_sub = dU_x - dU_x_max; 
-    cineq2_max_y_sub = dU_y - dU_y_max;
-
-    cineq2_max = [cineq2_max;cineq2_max_x_sub;cineq2_max_y_sub];
-end
-
-cineq2_min = [];
-for i = 1:H
-    dU_x = U((i-1)*input_length + 3);
-    dU_y = U((i-1)*input_length + 4);
-
-    cineq2_min_x_sub = -dU_x + dU_x_min; 
-    cineq2_min_y_sub = -dU_y + dU_y_min;
-
-    cineq2_min = [cineq2_min;cineq2_min_x_sub;cineq2_min_y_sub];
-end
-
-% Inequality constraint 3 (Step time constraints) (10)
-cineq3_max = []; 
-for i = 1:H
-    dT = U((i-1)*input_length + 7);
-
-    cineq3_max_sub = dT - dT_max;
-
-    cineq3_max = [cineq3_max; cineq3_max_sub];
-end
-
-cineq3_min = []; 
-for i = 1:H
-    dT = U((i-1)*input_length + 7);
-
-    cineq3_min_sub = -dT + dT_min;
-
-    cineq3_min = [cineq3_min; cineq3_min_sub];
-end
-
-% Inequality constraint 4 (Angular accleration constraints) (9-2)
-cineq4_max = [];
-for i = 1:H
-    ddtheta_x = U((i-1)*input_length + 8);   % roll
-    ddtheta_y = U((i-1)*input_length + 9);   % pitch
-
-    cineq4_max_x_sub = ddtheta_x - ddtheta_x_max;
-    cineq4_max_y_sub = ddtheta_y - ddtheta_y_max;
-
-    cineq4_max = [cineq4_max; cineq4_max_x_sub; cineq4_max_y_sub];
-end
-
-cineq4_min = [];
-for i = 1:H
-    ddtheta_x = U((i-1)*input_length + 8);   % roll
-    ddtheta_y = U((i-1)*input_length + 9);   % pitch
-
-    cineq4_min_x_sub = -ddtheta_x + ddtheta_x_min;
-    cineq4_min_y_sub = -ddtheta_y + ddtheta_y_min;
-
-    cineq4_min = [cineq4_min; cineq4_min_x_sub; cineq4_min_y_sub];
-end
-
-% Inequality constraint 5 (Swing foot speed in the MPC)
-cineq5_max = [];
-for i = 1:H
-    dU_x = U((i-1)*input_length + 3);
-    dU_y = U((i-1)*input_length + 4);
-
-    cineq5_max_x_sub = (dU_x - dU_x_prev) - i*V_x_max*dt;
-    cineq5_max_y_sub = (dU_y - dU_y_prev) - i*V_y_max*dt;
-
-    cineq5_max = [cineq5_max; cineq5_max_x_sub; cineq5_max_y_sub];
-end
-
-cineq5_min = [];
-for i = 1:H
-    dU_x = U((i-1)*input_length + 3);
-    dU_y = U((i-1)*input_length + 4);
-
-    cineq5_min_x_sub = -(dU_x - dU_x_prev) + i*V_x_min*dt;
-    cineq5_min_y_sub = -(dU_y - dU_y_prev) + i*V_y_min*dt;
-
-    cineq5_min = [cineq5_min; cineq5_min_x_sub; cineq5_min_y_sub];
-end
-
-% Inequality constraint 6 (Swing foot speed in the Real robot)
-dU_x = U(3);
-dU_y = U(4);
-cineq6_max_x_sub = (dU_x - dU_x_prev) - V_x_max*dt_real;
-cineq6_max_y_sub = (dU_y - dU_y_prev) - V_y_max*dt_real;
-cineq6_max = [cineq6_max_x_sub; cineq6_max_y_sub];
-
-dU_x = U(3);
-dU_y = U(4);
-cineq6_min_x_sub = -(dU_x - dU_x_prev) + V_x_min*dt_real;
-cineq6_min_y_sub = -(dU_y - dU_y_prev) + V_y_min*dt_real;
-cineq6_min = [cineq6_min_x_sub; cineq6_min_y_sub];
 
 cineq1_max_v = jacobian(cineq1_max, v);
 cineq1_min_v = jacobian(cineq1_min, v);
@@ -264,109 +187,107 @@ cineq4_max_v = jacobian(cineq4_max, v);
 cineq4_min_v = jacobian(cineq4_min, v);
 cineq5_max_v = jacobian(cineq5_max, v);
 cineq5_min_v = jacobian(cineq5_min, v);
-cineq6_max_v = jacobian(cineq6_max, v);
-cineq6_min_v = jacobian(cineq6_min, v);
+
+%--- Function generation
+disp('FUNCTION GENERATION START')
+
+output_dir = strcat(folder, '/Function/');
+
+J_v_func = Function('J_v_func',   {X, U, X_ref, U_ref, W_Q, W_R}, {J_v});
+J_vv_func = Function('J_vv_func', {X, U, X_ref, U_ref, W_Q, W_R}, {J_vv});
+ 
+ceq1_func = Function('ceq1_func', {x0, X, U, m, g, I, dT, rL_ref_horizon, rR_ref_horizon, theta_ref_horizon, etaL_ref_horizon, etaR_ref_horizon}, {ceq1});
+ceq1_v_func = Function('ceq1_v_func', {x0, X, U, m, g, I, dT, rL_ref_horizon, rR_ref_horizon, theta_ref_horizon, etaL_ref_horizon, etaR_ref_horizon}, {ceq1_v});
+
+cineq1_max_func = Function('cineq1_max_func', {U, f_z_max}, {cineq1_max});
+cineq1_min_func = Function('cineq1_min_func', {U, f_z_min}, {cineq1_min});
+cineq2_max_func = Function('cineq2_max_func', {U, mu}, {cineq2_max});
+cineq2_min_func = Function('cineq2_min_func', {U, mu}, {cineq2_min});
+cineq3_max_func = Function('cineq3_max_func', {U, mu}, {cineq3_max});
+cineq3_min_func = Function('cineq3_min_func', {U, mu}, {cineq3_min});
+cineq4_max_func = Function('cineq4_max_func', {U, footY}, {cineq4_max});
+cineq4_min_func = Function('cineq4_min_func', {U, footY}, {cineq4_min});
+cineq5_max_func = Function('cineq5_max_func', {U, footX}, {cineq5_max});
+cineq5_min_func = Function('cineq5_min_func', {U, footX}, {cineq5_min});
+
+cineq1_max_v_func = Function('cineq1_max_v_func', {U, f_z_max}, {cineq1_max_v});
+cineq1_min_v_func = Function('cineq1_min_v_func', {U, f_z_min}, {cineq1_min_v});
+cineq2_max_v_func = Function('cineq2_max_v_func', {U, mu}, {cineq2_max_v});
+cineq2_min_v_func = Function('cineq2_min_v_func', {U, mu}, {cineq2_min_v});
+cineq3_max_v_func = Function('cineq3_max_v_func', {U, mu}, {cineq3_max_v});
+cineq3_min_v_func = Function('cineq3_min_v_func', {U, mu}, {cineq3_min_v});
+cineq4_max_v_func = Function('cineq4_max_v_func', {U, footY}, {cineq4_max_v});
+cineq4_min_v_func = Function('cineq4_min_v_func', {U, footY}, {cineq4_min_v});
+cineq5_max_v_func = Function('cineq5_max_v_func', {U, footX}, {cineq5_max_v});
+cineq5_min_v_func = Function('cineq5_min_v_func', {U, footX}, {cineq5_min_v});
+disp('FUNCTION GENERATION END')
 
 %--- Function generation
 opts=struct('main',true,'mex',true,'with_header',true);
 
 % Cost function -> Function('name', {Inputs,...}, {Output})
-J_v_func = Function('J_v_func', {gain_state_horizon, gain_input_horizon, X, X_ref, U}, {J_v});
-J_vv_func = Function('J_vv_func', {gain_state_horizon, gain_input_horizon, X, X_ref, U}, {J_vv});
+disp('HESSIAN CODE GENERATION START')
+tic; 
+J_vv_func.generate('J_vv_func.c', opts);
+mex J_vv_func.c;
+elapsedTime = toc;
+disp(['HESSIAN CODE GENERATION COMPLETED IN ', num2str(elapsedTime), ' SECONDS'])
 
+disp('GRADIENT CODE GENERATION START')
+tic; 
 J_v_func.generate('J_v_func.c', opts);
 mex J_v_func.c
-J_vv_func.generate('J_vv_func.c', opts);
-mex J_vv_func.c
+elapsedTime = toc;
+disp(['GRADIENT CODE GENERATION COMPLETED IN ', num2str(elapsedTime), ' SECONDS'])
 
-% Equality constraints
-ceq0_func = Function('ceq0_func', {x, X, U, m, g, w, dt, J_x, J_y}, {ceq0});
-ceq1_func = Function('ceq1_func', {x, X, U, m, g, w, dt, t_step, J_x, J_y, xi_ref_horizon, T_step_ref_horizon}, {ceq1});
-ceq0_v_func = Function('ceq0_v_func', {x, X, U, m, g, w, dt, J_x, J_y}, {ceq0_v});
-ceq1_v_func = Function('ceq1_v_func', {x, X, U, m, g, w, dt, t_step, J_x, J_y, xi_ref_horizon, T_step_ref_horizon}, {ceq1_v});
-
-ceq0_func.generate('ceq0_func.c', opts);
-mex ceq0_func.c
+disp('CONSTRAINTS CODE GENERATION START')
+tic; 
 ceq1_func.generate('ceq1_func.c', opts);
 mex ceq1_func.c
-ceq0_v_func.generate('ceq0_v_func.c', opts);
-mex ceq0_v_func.c
 ceq1_v_func.generate('ceq1_v_func.c', opts);
 mex ceq1_v_func.c
 
-% Inequality constraints
-cineq1_max_func = Function('cineq1_max_func',{U, p_c_x_max, p_c_y_max}, {cineq1_max});
-cineq1_min_func = Function('cineq1_min_func',{U, p_c_x_min, p_c_y_min}, {cineq1_min});
-cineq2_max_func = Function('cineq2_max_func',{U, dU_x_max, dU_y_max}, {cineq2_max});
-cineq2_min_func = Function('cineq2_min_func',{U, dU_x_min, dU_y_min}, {cineq2_min});
-cineq3_max_func = Function('cineq3_max_func',{U, dT_max}, {cineq3_max});
-cineq3_min_func = Function('cineq3_min_func',{U, dT_min}, {cineq3_min});
-cineq4_max_func = Function('cineq4_max_func',{U, ddtheta_x_max, ddtheta_y_max}, {cineq4_max});
-cineq4_min_func = Function('cineq4_min_func',{U, ddtheta_x_min, ddtheta_y_min}, {cineq4_min});
-cineq5_max_func = Function('cineq5_max_func',{U, V_x_max, V_y_max, dU_x_prev, dU_y_prev, dt}, {cineq5_max});
-cineq5_min_func = Function('cineq5_min_func',{U, V_x_min, V_y_min, dU_x_prev, dU_y_prev, dt}, {cineq5_min});
-cineq6_max_func = Function('cineq6_max_func',{U, V_x_max, V_y_max, dU_x_prev, dU_y_prev, dt_real}, {cineq6_max});
-cineq6_min_func = Function('cineq6_min_func',{U, V_x_min, V_y_min, dU_x_prev, dU_y_prev, dt_real}, {cineq6_min});
-
-cineq1_max_v_func = Function('cineq1_max_v_func',{U, p_c_x_max, p_c_y_max}, {cineq1_max_v});
-cineq1_min_v_func = Function('cineq1_min_v_func',{U, p_c_x_min, p_c_y_min}, {cineq1_min_v});
-cineq2_max_v_func = Function('cineq2_max_v_func',{U, dU_x_max, dU_y_max}, {cineq2_max_v});
-cineq2_min_v_func = Function('cineq2_min_v_func',{U, dU_x_min, dU_y_min}, {cineq2_min_v});
-cineq3_max_v_func = Function('cineq3_max_v_func',{U, dT_max}, {cineq3_max_v});
-cineq3_min_v_func = Function('cineq3_min_v_func',{U, dT_min}, {cineq3_min_v});
-cineq4_max_v_func = Function('cineq4_max_v_func',{U, ddtheta_x_max, ddtheta_y_max}, {cineq4_max_v});
-cineq4_min_v_func = Function('cineq4_min_v_func',{U, ddtheta_x_min, ddtheta_y_min}, {cineq4_min_v});
-cineq5_max_v_func = Function('cineq5_max_v_func',{U, V_x_max, V_y_max, dU_x_prev, dU_y_prev, dt}, {cineq5_max_v});
-cineq5_min_v_func = Function('cineq5_min_v_func',{U, V_x_min, V_y_min, dU_x_prev, dU_y_prev, dt}, {cineq5_min_v});
-cineq6_max_v_func = Function('cineq6_max_v_func',{U, V_x_max, V_y_max, dU_x_prev, dU_y_prev, dt_real}, {cineq6_max_v});
-cineq6_min_v_func = Function('cineq6_min_v_func',{U, V_x_min, V_y_min, dU_x_prev, dU_y_prev, dt_real}, {cineq6_min_v});
-
 cineq1_max_func.generate('cineq1_max_func.c', opts);
-mex  cineq1_max_func.c
+mex cineq1_max_func.c
 cineq1_min_func.generate('cineq1_min_func.c', opts);
-mex  cineq1_min_func.c
+mex cineq1_min_func.c
 cineq2_max_func.generate('cineq2_max_func.c', opts);
-mex  cineq2_max_func.c
+mex cineq2_max_func.c
 cineq2_min_func.generate('cineq2_min_func.c', opts);
-mex  cineq2_min_func.c
+mex cineq2_min_func.c
 cineq3_max_func.generate('cineq3_max_func.c', opts);
-mex  cineq3_max_func.c
+mex cineq3_max_func.c
 cineq3_min_func.generate('cineq3_min_func.c', opts);
-mex  cineq3_min_func.c
+mex cineq3_min_func.c
 cineq4_max_func.generate('cineq4_max_func.c', opts);
-mex  cineq4_max_func.c
+mex cineq4_max_func.c
 cineq4_min_func.generate('cineq4_min_func.c', opts);
-mex  cineq4_min_func.c
+mex cineq4_min_func.c
 cineq5_max_func.generate('cineq5_max_func.c', opts);
-mex  cineq5_max_func.c
+mex cineq5_max_func.c
 cineq5_min_func.generate('cineq5_min_func.c', opts);
-mex  cineq5_min_func.c
-cineq6_max_func.generate('cineq6_max_func.c', opts);
-mex  cineq6_max_func.c
-cineq6_min_func.generate('cineq6_min_func.c', opts);
-mex  cineq6_min_func.c
+mex cineq5_min_func.c
+
 cineq1_max_v_func.generate('cineq1_max_v_func.c', opts);
-mex  cineq1_max_v_func.c
+mex cineq1_max_v_func.c
 cineq1_min_v_func.generate('cineq1_min_v_func.c', opts);
-mex  cineq1_min_v_func.c
+mex cineq1_min_v_func.c
 cineq2_max_v_func.generate('cineq2_max_v_func.c', opts);
-mex  cineq2_max_v_func.c
+mex cineq2_max_v_func.c
 cineq2_min_v_func.generate('cineq2_min_v_func.c', opts);
-mex  cineq2_min_v_func.c
+mex cineq2_min_v_func.c
 cineq3_max_v_func.generate('cineq3_max_v_func.c', opts);
-mex  cineq3_max_v_func.c
+mex cineq3_max_v_func.c
 cineq3_min_v_func.generate('cineq3_min_v_func.c', opts);
-mex  cineq3_min_v_func.c
+mex cineq3_min_v_func.c
 cineq4_max_v_func.generate('cineq4_max_v_func.c', opts);
-mex  cineq4_max_v_func.c
+mex cineq4_max_v_func.c
 cineq4_min_v_func.generate('cineq4_min_v_func.c', opts);
-mex  cineq4_min_v_func.c
+mex cineq4_min_v_func.c
 cineq5_max_v_func.generate('cineq5_max_v_func.c', opts);
-mex  cineq5_max_v_func.c
+mex cineq5_max_v_func.c
 cineq5_min_v_func.generate('cineq5_min_v_func.c', opts);
-mex  cineq5_min_v_func.c
-cineq6_max_v_func.generate('cineq6_max_v_func.c', opts);
-mex  cineq6_max_v_func.c
-cineq6_min_v_func.generate('cineq6_min_v_func.c', opts);
-mex  cineq6_min_v_func.c
-%---
+mex cineq5_min_v_func.c
+elapsedTime = toc;
+disp(['CONSTRAINTS CODE GENERATION COMPLETED IN ', num2str(elapsedTime), ' SECONDS'])
+% ---

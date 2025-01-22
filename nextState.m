@@ -1,37 +1,21 @@
-function [p_c, dU, db, dT, ddtheta] = nextState(v0, t_step, xi_err, xi_ref_horizon, T_step_ref_horizon, dU_x_prev, dU_y_prev)
+function [mL, fL, mR, fR] = nextState(x0, ...
+                                      theta, COM, w, dCOM, ...
+                                      theta_ref_horizon, COM_ref_horizon, w_ref_horizon, dCOM_ref_horizon, ...
+                                      rL_ref_horizon, rR_ref_horizon, etaL_ref_horizon, etaR_ref_horizon)
 
-iter = 0;
-v = v0;
-dv = 1E03;
-update_rate = 1.0;
+[P, c, A, b, G, h] = qpswiftParameters(x0, theta_ref_horizon, COM_ref_horizon, w_ref_horizon, dCOM_ref_horizon, ...
+                                           rL_ref_horizon, rR_ref_horizon, etaL_ref_horizon, etaR_ref_horizon);
+[v, ~, ~] = qpSWIFT(sparse(P),c,sparse(A),b,sparse(G),h);
 
-while norm(dv) >= 1e00
-    [P, c, A, b, G, h] = qpswiftParameters(v, t_step, xi_err, xi_ref_horizon, T_step_ref_horizon, dU_x_prev, dU_y_prev);
-    [dv, ~, ~] = qpSWIFT(sparse(P),c,sparse(A),b,sparse(G),h);
-    v = v + update_rate*dv;
-
-    X = v(1:PARA.H*PARA.state_length,1);
-    U = v(PARA.H*PARA.state_length+1:end, 1);
-
-    if iter >= 1E02
-        disp("Iteration Exceed!");
-        norm(dv);
-        break;
-    end
-
-    if sum(isnan(dv)) > 0
-        disp(v);
-        disp("NAN!");
-        break;
-    end
-
-    iter = iter + 1
+if sum(isnan(v)) > 0
+    disp(v);
+    fprintf("NAN!\n");
+    % break;
 end
 
-p_c = v(PARA.H*PARA.state_length + 1 : PARA.H*PARA.state_length + 2);
-dU  = v(PARA.H*PARA.state_length + 3 : PARA.H*PARA.state_length + 4);
-db  = v(PARA.H*PARA.state_length + 5 : PARA.H*PARA.state_length + 6);
-dT  = v(PARA.H*PARA.state_length + 7);
-ddtheta = v(PARA.H*PARA.state_length + 8 : PARA.H*PARA.state_length + 9);
-end
+mL = v(PARA.H*PARA.state_length + 1 : PARA.H*PARA.state_length + 3);
+fL = v(PARA.H*PARA.state_length + 4 : PARA.H*PARA.state_length + 6);
+mR = v(PARA.H*PARA.state_length + 7 : PARA.H*PARA.state_length + 9);
+fR = v(PARA.H*PARA.state_length + 10: PARA.H*PARA.state_length + 12);
 
+end

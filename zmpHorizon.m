@@ -1,11 +1,11 @@
-function p_window = zmpTrajWindow(t_step, step_phase, p_total, T_step_total)
-NL = PARA.NL;
+function p_horizon = zmpHorizon(t_step, step_phase, p_total, T_step_total)
+H = PARA.H;
 
-p_window = zeros(3, NL+1);
+p_horizon = zeros(3, H);
 
 t_step_temp = t_step; step_phase_temp = step_phase;
 T_step_temp = T_step_total(step_phase_temp);
-for i = 1:(NL+1)
+for i = 1:H
     if t_step_temp > T_step_temp
         if step_phase_temp + 1 <= length(p_total)
             step_phase_temp = step_phase_temp + 1;
@@ -18,8 +18,8 @@ for i = 1:(NL+1)
         end
     end   
     
-    p_window(:, i) = p_total(:, step_phase_temp);
+    p_horizon(:, i) = p_total(:, step_phase_temp);
     
-    t_step_temp = t_step_temp + PARA.dt;
+    t_step_temp = t_step_temp + PARA.dt_MPC;
 end
 end

@@ -180,52 +180,103 @@ mxArray* casadi_to_mex(const casadi_int* sp, const casadi_real* x) {
 
 static const casadi_int casadi_s0[184] = {180, 1, 0, 180, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179};
 static const casadi_int casadi_s1[5] = {1, 1, 0, 1, 0};
-static const casadi_int casadi_s2[263] = {40, 220, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 6, 6, 6, 6, 6, 6, 6, 6, 7, 8, 8, 8, 8, 8, 8, 8, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10, 11, 12, 12, 12, 12, 12, 12, 12, 12, 13, 14, 14, 14, 14, 14, 14, 14, 14, 15, 16, 16, 16, 16, 16, 16, 16, 16, 17, 18, 18, 18, 18, 18, 18, 18, 18, 19, 20, 20, 20, 20, 20, 20, 20, 20, 21, 22, 22, 22, 22, 22, 22, 22, 22, 23, 24, 24, 24, 24, 24, 24, 24, 24, 25, 26, 26, 26, 26, 26, 26, 26, 26, 27, 28, 28, 28, 28, 28, 28, 28, 28, 29, 30, 30, 30, 30, 30, 30, 30, 30, 31, 32, 32, 32, 32, 32, 32, 32, 32, 33, 34, 34, 34, 34, 34, 34, 34, 34, 35, 36, 36, 36, 36, 36, 36, 36, 36, 37, 38, 38, 38, 38, 38, 38, 38, 38, 39, 40, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39};
+static const casadi_int casadi_s2[423] = {30, 360, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 3, 3, 3, 3, 3, 4, 5, 5, 5, 5, 5, 6, 7, 7, 7, 7, 7, 8, 9, 9, 9, 9, 9, 10, 11, 11, 11, 11, 11, 12, 13, 13, 13, 13, 13, 14, 15, 15, 15, 15, 15, 16, 17, 17, 17, 17, 17, 18, 19, 19, 19, 19, 19, 20, 21, 21, 21, 21, 21, 22, 23, 23, 23, 23, 23, 24, 25, 25, 25, 25, 25, 26, 27, 27, 27, 27, 27, 28, 29, 29, 29, 29, 29, 30, 31, 31, 31, 31, 31, 32, 33, 33, 33, 33, 33, 34, 35, 35, 35, 35, 35, 36, 37, 37, 37, 37, 37, 38, 39, 39, 39, 39, 39, 40, 41, 41, 41, 41, 41, 42, 43, 43, 43, 43, 43, 44, 45, 45, 45, 45, 45, 46, 47, 47, 47, 47, 47, 48, 49, 49, 49, 49, 49, 50, 51, 51, 51, 51, 51, 52, 53, 53, 53, 53, 53, 54, 55, 55, 55, 55, 55, 56, 57, 57, 57, 57, 57, 58, 59, 59, 59, 59, 59, 60, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 25, 25, 26, 26, 27, 27, 28, 28, 29, 29};
 
-/* cineq4_max_v_func:(i0[180],i1,i2)->(o0[40x220,40nz]) */
+/* cineq4_max_v_func:(i0[180],i1)->(o0[30x360,60nz]) */
 static int casadi_f0(const casadi_real** arg, casadi_real** res, casadi_int* iw, casadi_real* w, int mem) {
-  casadi_real a0;
+  casadi_real a0, a1, a2;
   a0=1.;
   if (res[0]!=0) res[0][0]=a0;
-  if (res[0]!=0) res[0][1]=a0;
+  a1=arg[1]? arg[1][0] : 0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][1]=a2;
   if (res[0]!=0) res[0][2]=a0;
-  if (res[0]!=0) res[0][3]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][3]=a2;
   if (res[0]!=0) res[0][4]=a0;
-  if (res[0]!=0) res[0][5]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][5]=a2;
   if (res[0]!=0) res[0][6]=a0;
-  if (res[0]!=0) res[0][7]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][7]=a2;
   if (res[0]!=0) res[0][8]=a0;
-  if (res[0]!=0) res[0][9]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][9]=a2;
   if (res[0]!=0) res[0][10]=a0;
-  if (res[0]!=0) res[0][11]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][11]=a2;
   if (res[0]!=0) res[0][12]=a0;
-  if (res[0]!=0) res[0][13]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][13]=a2;
   if (res[0]!=0) res[0][14]=a0;
-  if (res[0]!=0) res[0][15]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][15]=a2;
   if (res[0]!=0) res[0][16]=a0;
-  if (res[0]!=0) res[0][17]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][17]=a2;
   if (res[0]!=0) res[0][18]=a0;
-  if (res[0]!=0) res[0][19]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][19]=a2;
   if (res[0]!=0) res[0][20]=a0;
-  if (res[0]!=0) res[0][21]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][21]=a2;
   if (res[0]!=0) res[0][22]=a0;
-  if (res[0]!=0) res[0][23]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][23]=a2;
   if (res[0]!=0) res[0][24]=a0;
-  if (res[0]!=0) res[0][25]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][25]=a2;
   if (res[0]!=0) res[0][26]=a0;
-  if (res[0]!=0) res[0][27]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][27]=a2;
   if (res[0]!=0) res[0][28]=a0;
-  if (res[0]!=0) res[0][29]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][29]=a2;
   if (res[0]!=0) res[0][30]=a0;
-  if (res[0]!=0) res[0][31]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][31]=a2;
   if (res[0]!=0) res[0][32]=a0;
-  if (res[0]!=0) res[0][33]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][33]=a2;
   if (res[0]!=0) res[0][34]=a0;
-  if (res[0]!=0) res[0][35]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][35]=a2;
   if (res[0]!=0) res[0][36]=a0;
-  if (res[0]!=0) res[0][37]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][37]=a2;
   if (res[0]!=0) res[0][38]=a0;
-  if (res[0]!=0) res[0][39]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][39]=a2;
+  if (res[0]!=0) res[0][40]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][41]=a2;
+  if (res[0]!=0) res[0][42]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][43]=a2;
+  if (res[0]!=0) res[0][44]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][45]=a2;
+  if (res[0]!=0) res[0][46]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][47]=a2;
+  if (res[0]!=0) res[0][48]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][49]=a2;
+  if (res[0]!=0) res[0][50]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][51]=a2;
+  if (res[0]!=0) res[0][52]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][53]=a2;
+  if (res[0]!=0) res[0][54]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][55]=a2;
+  if (res[0]!=0) res[0][56]=a0;
+  a2=(-a1);
+  if (res[0]!=0) res[0][57]=a2;
+  if (res[0]!=0) res[0][58]=a0;
+  a1=(-a1);
+  if (res[0]!=0) res[0][59]=a1;
   return 0;
 }
 
@@ -257,7 +308,7 @@ CASADI_SYMBOL_EXPORT void cineq4_max_v_func_incref(void) {
 CASADI_SYMBOL_EXPORT void cineq4_max_v_func_decref(void) {
 }
 
-CASADI_SYMBOL_EXPORT casadi_int cineq4_max_v_func_n_in(void) { return 3;}
+CASADI_SYMBOL_EXPORT casadi_int cineq4_max_v_func_n_in(void) { return 2;}
 
 CASADI_SYMBOL_EXPORT casadi_int cineq4_max_v_func_n_out(void) { return 1;}
 
@@ -271,7 +322,6 @@ CASADI_SYMBOL_EXPORT const char* cineq4_max_v_func_name_in(casadi_int i){
   switch (i) {
     case 0: return "i0";
     case 1: return "i1";
-    case 2: return "i2";
     default: return 0;
   }
 }
@@ -287,7 +337,6 @@ CASADI_SYMBOL_EXPORT const casadi_int* cineq4_max_v_func_sparsity_in(casadi_int 
   switch (i) {
     case 0: return casadi_s0;
     case 1: return casadi_s1;
-    case 2: return casadi_s1;
     default: return 0;
   }
 }
@@ -300,7 +349,7 @@ CASADI_SYMBOL_EXPORT const casadi_int* cineq4_max_v_func_sparsity_out(casadi_int
 }
 
 CASADI_SYMBOL_EXPORT int cineq4_max_v_func_work(casadi_int *sz_arg, casadi_int* sz_res, casadi_int *sz_iw, casadi_int *sz_w) {
-  if (sz_arg) *sz_arg = 3;
+  if (sz_arg) *sz_arg = 2;
   if (sz_res) *sz_res = 1;
   if (sz_iw) *sz_iw = 0;
   if (sz_w) *sz_w = 0;
@@ -310,18 +359,17 @@ CASADI_SYMBOL_EXPORT int cineq4_max_v_func_work(casadi_int *sz_arg, casadi_int* 
 #ifdef MATLAB_MEX_FILE
 void mex_cineq4_max_v_func(int resc, mxArray *resv[], int argc, const mxArray *argv[]) {
   casadi_int i;
-  casadi_real w[402];
+  casadi_real w[421];
   casadi_int *iw = 0;
-  const casadi_real* arg[3] = {0};
+  const casadi_real* arg[2] = {0};
   casadi_real* res[1] = {0};
-  if (argc>3) mexErrMsgIdAndTxt("Casadi:RuntimeError","Evaluation of \"cineq4_max_v_func\" failed. Too many input arguments (%d, max 3)", argc);
+  if (argc>2) mexErrMsgIdAndTxt("Casadi:RuntimeError","Evaluation of \"cineq4_max_v_func\" failed. Too many input arguments (%d, max 2)", argc);
   if (resc>1) mexErrMsgIdAndTxt("Casadi:RuntimeError","Evaluation of \"cineq4_max_v_func\" failed. Too many output arguments (%d, max 1)", resc);
-  if (--argc>=0) arg[0] = casadi_from_mex(argv[0], w, casadi_s0, w+222);
-  if (--argc>=0) arg[1] = casadi_from_mex(argv[1], w+180, casadi_s1, w+222);
-  if (--argc>=0) arg[2] = casadi_from_mex(argv[2], w+181, casadi_s1, w+222);
+  if (--argc>=0) arg[0] = casadi_from_mex(argv[0], w, casadi_s0, w+241);
+  if (--argc>=0) arg[1] = casadi_from_mex(argv[1], w+180, casadi_s1, w+241);
   --resc;
-  res[0] = w+182;
-  i = cineq4_max_v_func(arg, res, iw, w+222, 0);
+  res[0] = w+181;
+  i = cineq4_max_v_func(arg, res, iw, w+241, 0);
   if (i) mexErrMsgIdAndTxt("Casadi:RuntimeError","Evaluation of \"cineq4_max_v_func\" failed.");
   if (res[0]) resv[0] = casadi_to_mex(casadi_s2, res[0]);
 }
@@ -333,19 +381,18 @@ casadi_int main_cineq4_max_v_func(casadi_int argc, char* argv[]) {
   const casadi_real* r;
   casadi_int flag;
   casadi_int *iw = 0;
-  casadi_real w[223];
-  const casadi_real* arg[3];
+  casadi_real w[244];
+  const casadi_real* arg[2];
   casadi_real* res[1];
   arg[0] = w+0;
   arg[1] = w+180;
-  arg[2] = w+181;
-  res[0] = w+182;
+  res[0] = w+181;
   a = w;
-  for (j=0; j<182; ++j) if (scanf("%lg", a++)<=0) return 2;
-  flag = cineq4_max_v_func(arg, res, iw, w+222, 0);
+  for (j=0; j<181; ++j) if (scanf("%lg", a++)<=0) return 2;
+  flag = cineq4_max_v_func(arg, res, iw, w+241, 0);
   if (flag) return flag;
-  r = w+182;
-  for (j=0; j<40; ++j) CASADI_PRINTF("%g ", *r++);
+  r = w+181;
+  for (j=0; j<60; ++j) CASADI_PRINTF("%g ", *r++);
   CASADI_PRINTF("\n");
   return 0;
 }
