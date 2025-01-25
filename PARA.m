@@ -61,10 +61,15 @@ classdef PARA < handle
         Q_w     = 10000;
         Q_dCOM  = 10000;
         
-        R_mL = 1;
-        R_fL = 1;
-        R_mR = 1;
-        R_fR = 1;
+        R_mL_contact = 1;
+        R_fL_contact = 1;
+        R_mR_contact = 1;
+        R_fR_contact = 1;
+
+        R_mL_swing = 100000000;
+        R_fL_swing = 100000000;
+        R_mR_swing = 100000000;
+        R_fR_swing = 100000000;
 
         f_z_max = 500;
         f_z_min = 0;

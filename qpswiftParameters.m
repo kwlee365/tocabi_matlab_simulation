@@ -1,5 +1,5 @@
 function [P, c, A, b, G, h] = qpswiftParameters(x0, theta_ref_horizon, COM_ref_horizon, w_ref_horizon, dCOM_ref_horizon, ...
-                                                rL_ref_horizon, rR_ref_horizon, etaL_ref_horizon, etaR_ref_horizon)
+                                                rL_ref_horizon, rR_ref_horizon, Foot_state)
 
 H = PARA.H;
 state_length = PARA.state_length;
@@ -21,11 +21,23 @@ for i = 1:H
     gain_state_horizon((i-1)*state_length + 6,  1) = PARA.Q_COM_z;
     gain_state_horizon((i-1)*state_length + 7 : (i-1)*state_length + 9,  1) = PARA.Q_w;
     gain_state_horizon((i-1)*state_length + 10: (i-1)*state_length + 12, 1) = PARA.Q_dCOM;
-
-    gain_input_horizon((i-1)*input_length + 1 : (i-1)*state_length + 3,  1) = PARA.R_mL;
-    gain_input_horizon((i-1)*input_length + 4 : (i-1)*state_length + 6,  1) = PARA.R_fL;
-    gain_input_horizon((i-1)*input_length + 7 : (i-1)*state_length + 9,  1) = PARA.R_mR;
-    gain_input_horizon((i-1)*input_length + 10: (i-1)*state_length + 12, 1) = PARA.R_fR;   
+    
+    if Foot_state == 2
+        gain_input_horizon((i-1)*input_length + 1 : (i-1)*state_length + 3,  1) = PARA.R_mL_contact;
+        gain_input_horizon((i-1)*input_length + 4 : (i-1)*state_length + 6,  1) = PARA.R_fL_contact;
+        gain_input_horizon((i-1)*input_length + 7 : (i-1)*state_length + 9,  1) = PARA.R_mR_contact;
+        gain_input_horizon((i-1)*input_length + 10: (i-1)*state_length + 12, 1) = PARA.R_fR_contact; 
+    elseif Foot_state ==  1 % LF swing
+        gain_input_horizon((i-1)*input_length + 1 : (i-1)*state_length + 3,  1) = PARA.R_mL_swing;
+        gain_input_horizon((i-1)*input_length + 4 : (i-1)*state_length + 6,  1) = PARA.R_fL_swing;
+        gain_input_horizon((i-1)*input_length + 7 : (i-1)*state_length + 9,  1) = PARA.R_mR_contact;
+        gain_input_horizon((i-1)*input_length + 10: (i-1)*state_length + 12, 1) = PARA.R_fR_contact;   
+    elseif Foot_state == -1 % RF swing
+        gain_input_horizon((i-1)*input_length + 1 : (i-1)*state_length + 3,  1) = PARA.R_mL_contact;
+        gain_input_horizon((i-1)*input_length + 4 : (i-1)*state_length + 6,  1) = PARA.R_fL_contact;
+        gain_input_horizon((i-1)*input_length + 7 : (i-1)*state_length + 9,  1) = PARA.R_mR_swing;
+        gain_input_horizon((i-1)*input_length + 10: (i-1)*state_length + 12, 1) = PARA.R_fR_swing;   
+    end
 end
 
 % MPC Reference
@@ -43,8 +55,8 @@ end
 c = J_v_func(X, U, X_ref, U_ref, gain_state_horizon, gain_input_horizon);
 P = J_vv_func(X, U, X_ref, U_ref, gain_state_horizon, gain_input_horizon);
 
-ceq1   = ceq1_func(x0, X, U, m, g, I, dT, rL_ref_horizon, rR_ref_horizon, theta_ref_horizon, etaL_ref_horizon, etaR_ref_horizon);
-ceq1_v = ceq1_v_func(x0, X, U, m, g, I, dT, rL_ref_horizon, rR_ref_horizon, theta_ref_horizon, etaL_ref_horizon, etaR_ref_horizon);
+ceq1   = ceq1_func(x0, X, U, m, g, I, dT, rL_ref_horizon, rR_ref_horizon, theta_ref_horizon);
+ceq1_v = ceq1_v_func(x0, X, U, m, g, I, dT, rL_ref_horizon, rR_ref_horizon, theta_ref_horizon);
 
 ceq2   = ceq2_func(X, U, m, g, zc);
 ceq2_v = ceq2_v_func(X, U, m, g, zc);

@@ -25,9 +25,6 @@ rR_ref_horizon = SX.sym('rR_ref_horizon', 3, H);
 
 theta_ref_horizon = SX.sym('theta_ref_horizon', 3, H);
 
-etaL_ref_horizon = SX.sym('etaL_ref_horizon', H);
-etaR_ref_horizon = SX.sym('etaR_ref_horizon', H);
-
 % STATE AND CONTROL INPUTS
 X     = SX.sym('X',     state_length * H, 1);
 X_ref = SX.sym('X_ref', state_length * H, 1);
@@ -57,9 +54,6 @@ for i = 1:H
     rR = rR_ref_horizon(:, i);
     theta = theta_ref_horizon(:, i);
 
-    etaL = etaL_ref_horizon(i);
-    etaR = etaR_ref_horizon(i);
-
     T = SX.zeros(3, 3);
     roll = theta(1); pitch = theta(2); yaw = theta(3);
 
@@ -81,13 +75,13 @@ for i = 1:H
     % A(1:3, 7:9) = T;
     A(4:6, 10:12) = SX.eye(3);
 
-    B(7:9, 1:3)   = etaL * I_inv;
-    B(7:9, 4:6)   = etaL * I_inv * skew(rL);
-    B(7:9, 7:9)   = etaR * I_inv;
-    B(7:9, 10:12) = etaR * I_inv * skew(rR);
+    B(7:9, 1:3)   = I_inv;
+    B(7:9, 4:6)   = I_inv * skew(rL);
+    B(7:9, 7:9)   = I_inv;
+    B(7:9, 10:12) = I_inv * skew(rR);
 
-    B(10:12, 4:6)   = etaL * SX.eye(3) / m;
-    B(10:12, 10:12) = etaR * SX.eye(3) / m;
+    B(10:12, 4:6)   = SX.eye(3) / m;
+    B(10:12, 10:12) = SX.eye(3) / m;
 
     d(12) = -g;
 
@@ -221,8 +215,8 @@ output_dir = strcat(folder, '/Function/');
 J_v_func = Function('J_v_func',   {X, U, X_ref, U_ref, W_Q, W_R}, {J_v});
 J_vv_func = Function('J_vv_func', {X, U, X_ref, U_ref, W_Q, W_R}, {J_vv});
  
-ceq1_func = Function('ceq1_func', {x0, X, U, m, g, I, dT, rL_ref_horizon, rR_ref_horizon, theta_ref_horizon, etaL_ref_horizon, etaR_ref_horizon}, {ceq1});
-ceq1_v_func = Function('ceq1_v_func', {x0, X, U, m, g, I, dT, rL_ref_horizon, rR_ref_horizon, theta_ref_horizon, etaL_ref_horizon, etaR_ref_horizon}, {ceq1_v});
+ceq1_func = Function('ceq1_func', {x0, X, U, m, g, I, dT, rL_ref_horizon, rR_ref_horizon, theta_ref_horizon}, {ceq1});
+ceq1_v_func = Function('ceq1_v_func', {x0, X, U, m, g, I, dT, rL_ref_horizon, rR_ref_horizon, theta_ref_horizon}, {ceq1_v});
 
 ceq2_func = Function('ceq2_func', {X, U, m, g, h}, {ceq2});
 ceq2_v_func = Function('ceq2_v_func', {X, U, m, g, h}, {ceq2_v});
