@@ -7,6 +7,7 @@ input_length = PARA.input_length;
 
 m = PARA.m_all;
 g = PARA.g;
+zc = PARA.zc;
 I = PARA.I;
 dT = PARA.dt_MPC;
 
@@ -45,6 +46,9 @@ P = J_vv_func(X, U, X_ref, U_ref, gain_state_horizon, gain_input_horizon);
 ceq1   = ceq1_func(x0, X, U, m, g, I, dT, rL_ref_horizon, rR_ref_horizon, theta_ref_horizon, etaL_ref_horizon, etaR_ref_horizon);
 ceq1_v = ceq1_v_func(x0, X, U, m, g, I, dT, rL_ref_horizon, rR_ref_horizon, theta_ref_horizon, etaL_ref_horizon, etaR_ref_horizon);
 
+ceq2   = ceq2_func(X, U, m, g, zc);
+ceq2_v = ceq2_v_func(X, U, m, g, zc);
+
 cineq1_max = cineq1_max_func(U, PARA.f_z_max);
 cineq1_min = cineq1_min_func(U, PARA.f_z_min);
 cineq2_max = cineq2_max_func(U, PARA.mu);
@@ -67,9 +71,14 @@ cineq4_min_v = cineq4_min_v_func(U, PARA.Foot_width / 2.0);
 cineq5_max_v = cineq5_max_v_func(U, PARA.Foot_length/ 2.0);
 cineq5_min_v = cineq5_min_v_func(U, PARA.Foot_length/ 2.0);
     
-A = [ceq1_v];
-b = (-1).*[ceq1];
-       
+% A = [ceq1_v];
+% b = (-1).*[ceq1];
+% 
+A = [ceq1_v;
+     ceq2_v];
+b = (-1).*[ceq1;
+           ceq2];
+
 G = [cineq1_max_v;
      cineq1_min_v;
      cineq2_max_v;

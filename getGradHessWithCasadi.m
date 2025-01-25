@@ -9,6 +9,7 @@ input_length = PARA.input_length;
 
 m = SX.sym('m');
 g = SX.sym('g');
+h = SX.sym('h');
 I = SX.sym('I', 3, 3);
 I_inv = inv(I);
 
@@ -43,7 +44,7 @@ J = (X - X_ref)' * diag(W_Q) * (X - X_ref) + (U - U_ref)' * diag(W_R) * (U - U_r
 J_v = jacobian(J, v);
 J_vv = hessian(J, v);
 
-% DYNAMICS
+% SRBD DYNAMICS
 ceq1 = [];
 
 x0 = SX.sym('x0', state_length, 1);  % CURRENT ROBOT STATE
@@ -77,6 +78,7 @@ for i = 1:H
     d = SX.zeros(state_length, 1);
 
     A(1:3, 7:9) = T_inv;
+    % A(1:3, 7:9) = T;
     A(4:6, 10:12) = SX.eye(3);
 
     B(7:9, 1:3)   = etaL * I_inv;
@@ -110,6 +112,28 @@ for i = 1:H
 
     x_k = x_k_next;
 end
+
+% CAPTURABILITY CONSTRAINTS
+ceq2 = []
+
+b = sqrt(h/g);
+dCOM_x = X(state_length * (H-1) + 10);
+dCOM_y = X(state_length * (H-1) + 11);
+dCOM_z = X(state_length * (H-1) + 12);
+
+fL_x = U(input_length * (H-1) + 4);
+fL_y = U(input_length * (H-1) + 5);
+fL_z = U(input_length * (H-1) + 6);
+
+fR_x = U(input_length * (H-1) + 10);
+fR_y = U(input_length * (H-1) + 11);
+fR_z = U(input_length * (H-1) + 12);
+
+ceq2_x_sub = dCOM_x + b * (fL_x / m + fR_x / m);
+ceq2_y_sub = dCOM_y + b * (fL_y / m + fR_y / m);
+ceq2_z_sub = dCOM_z + b * (fL_z / m + fR_z / m- g);
+
+ceq2 = [ceq2; ceq2_x_sub; ceq2_y_sub; ceq2_z_sub];
 
 % FRICTION CONE
 cineq1_max = []; cineq1_min = [];
@@ -176,6 +200,7 @@ for i = 1:H
 end
 
 ceq1_v = jacobian(ceq1, v);
+ceq2_v = jacobian(ceq2, v);
 
 cineq1_max_v = jacobian(cineq1_max, v);
 cineq1_min_v = jacobian(cineq1_min, v);
@@ -198,6 +223,9 @@ J_vv_func = Function('J_vv_func', {X, U, X_ref, U_ref, W_Q, W_R}, {J_vv});
  
 ceq1_func = Function('ceq1_func', {x0, X, U, m, g, I, dT, rL_ref_horizon, rR_ref_horizon, theta_ref_horizon, etaL_ref_horizon, etaR_ref_horizon}, {ceq1});
 ceq1_v_func = Function('ceq1_v_func', {x0, X, U, m, g, I, dT, rL_ref_horizon, rR_ref_horizon, theta_ref_horizon, etaL_ref_horizon, etaR_ref_horizon}, {ceq1_v});
+
+ceq2_func = Function('ceq2_func', {X, U, m, g, h}, {ceq2});
+ceq2_v_func = Function('ceq2_v_func', {X, U, m, g, h}, {ceq2_v});
 
 cineq1_max_func = Function('cineq1_max_func', {U, f_z_max}, {cineq1_max});
 cineq1_min_func = Function('cineq1_min_func', {U, f_z_min}, {cineq1_min});
@@ -246,6 +274,10 @@ ceq1_func.generate('ceq1_func.c', opts);
 mex ceq1_func.c
 ceq1_v_func.generate('ceq1_v_func.c', opts);
 mex ceq1_v_func.c
+ceq2_func.generate('ceq2_func.c', opts);
+mex ceq2_func.c
+ceq2_v_func.generate('ceq2_v_func.c', opts);
+mex ceq2_v_func.c
 
 cineq1_max_func.generate('cineq1_max_func.c', opts);
 mex cineq1_max_func.c

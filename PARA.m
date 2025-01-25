@@ -55,9 +55,9 @@ classdef PARA < handle
         input_length = 12; % [mL, fL, mR, fR];   
 
         Q_theta = 100000000;
-        Q_COM_x = 100000000;
-        Q_COM_y = 100000000;
-        Q_COM_z = 100000000;
+        Q_COM_x = 1000000000;
+        Q_COM_y = 1000000000;
+        Q_COM_z = 1000000000;
         Q_w     = 10000;
         Q_dCOM  = 10000;
         

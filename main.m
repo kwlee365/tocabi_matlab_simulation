@@ -16,15 +16,15 @@ addpath(genpath(folder));
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% User Input %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Step information
-number_of_step = 5;             % Number of steps
+number_of_step = 10;             % Number of steps
 step_length = 0.3;              % Step stride
 step_width = PARA.pelvis_width;  % Step width
 step_time = 0.5;                 % Step period
 L_or_R = 1;                      % First swing foot: 1: Left foot / -1: Right foot
 
 % Disturbance information
-Impact_force_x = 0;            % [N]: x-dir impact force
-Impact_force_y = 300;              % [N]: y-dir impact force
+Impact_force_x = 0;              % [N]: x-dir impact force
+Impact_force_y = 400;            % [N]: y-dir impact force
 Impact_duration = 0.05;          % [s]: Impact duration
 Impact_timing = 0.3;             % [s]: Timing of impact
 Impact_step_number = 3;         
@@ -44,7 +44,6 @@ if flag_HORIZON_CHANGED == 1
     getGradHessWithCasadi();
 end
 %---
-%%
 %--- Global variables
 global flag_EXIT flag_PAUSE;
 global dx dy;
@@ -117,7 +116,8 @@ etaR_stored = zeros(1, i_max);
 LF_stored = zeros(3, i_max);
 RF_stored = zeros(3, i_max);
 ticktock_stored = zeros(1, i_max);
-%---
+
+%%
 
 %--- World generation
 if ishandle(10)
@@ -222,10 +222,10 @@ while 1
         
     % Calc control input
     x0 = [theta; COM; w; dCOM];
-    [mL, fL, mR, fR] = nextState(x0, ...
-                                 theta, COM, w, dCOM, ...
-                                 theta_ref_horizon, COM_ref_horizon, w_ref_horizon, dCOM_ref_horizon, ...
-                                 rL_ref_horizon, rR_ref_horizon, etaL_ref_horizon, etaR_ref_horizon);
+    [mL, fL, mR, fR] =  nextState(x0, ...
+                                  theta, COM, w, dCOM, ...
+                                  theta_ref_horizon, COM_ref_horizon, w_ref_horizon, dCOM_ref_horizon, ...
+                                  rL_ref_horizon, rR_ref_horizon, etaL_ref_horizon, etaR_ref_horizon);
 
     contact_wrench_result = [mL; fL; mR; fR];
     rL = LF_prev - COM;
@@ -276,6 +276,7 @@ while 1
     etaL_stored(1, i) = etaL_ref_horizon(1);
     etaR_stored(1, i) = etaR_ref_horizon(1);
     ticktock_stored(:, i) = ticktock;
+
     % Visualization
     if mod(i, 50) == 1  
         if flag_VISUALIZATION == 1
