@@ -24,7 +24,7 @@ L_or_R = 1;                      % First swing foot: 1: Left foot / -1: Right fo
 
 % Disturbance information
 Impact_force_x = 0;              % [N]: x-dir impact force
-Impact_force_y = 400;            % [N]: y-dir impact force
+Impact_force_y = 500;            % [N]: y-dir impact force
 Impact_duration = 0.05;          % [s]: Impact duration
 Impact_timing = 0.3;             % [s]: Timing of impact
 Impact_step_number = 3;         
@@ -106,6 +106,8 @@ T_step_stored = zeros(1, i_max);
 COM_stored = zeros(3, i_max);
 dCOM_stored = zeros(3, i_max);
 COM_ref_stored = zeros(3, i_max);
+theta_stored = zeros(3, i_max);
+
 p_stored = zeros(3, i_max); 
 mL_stored = zeros(3, i_max); 
 fL_stored = zeros(3, i_max); 
@@ -119,37 +121,9 @@ ticktock_stored = zeros(1, i_max);
 
 %%
 
-%--- World generation
-if ishandle(10)
-    close(10)
-end
-if flag_VISUALIZATION == 1
-    fig_world = figure(10);
-    set(fig_world, 'Position', [1000 540 920 455], 'Renderer', 'OpenGL', 'Color',[1,1,1], 'KeyPressFcn', @printfig);
-    axe = axes('Parent', fig_world);
-    if flag_VISUALIZATION_ROBOT == 1
-        ax = 55; ay = 15;
-    else
-        ax = 0; ay = 89.999;
-    end
-    view([ax ay]);
-    set(axe, 'XLim', [-0.5 0.5], 'YLim', [-0.5 0.5], 'ZLim', [-0.02 1], 'DataAspectRatio', [1 1 1]);
-    grid on; grid minor;
-    xlabel('x [m]'); ylabel('y [m]'); zlabel('z [m]');
-end
-%---
-
 %--- Main Loop
 while 1
     tic;
-    if flag_VISUALIZATION == 1
-        % Camera control
-        ax = ax - dx;
-        ay = ay - dy;
-        dx = 0; dy = 0;
-        view([ax, ay]);
-        set(axe,'XLim',[-0.5+COM(1) 0.5+COM(1)],'YLim',[-0.5+COM(2) 0.5+COM(2)],'ZLim',[-0.02 1.0], 'DataAspectRatio', [1 1 1]);
-    end
 
     % Step change
     flag_STEP_CHANGE = checkStepEnd(t_step, T_step);
@@ -185,7 +159,6 @@ while 1
         break;
     elseif (flag_EXIT == 1)
         disp('Walking finish!!');
-        close(10);
         break;
     end
 
@@ -217,9 +190,9 @@ while 1
         mpcRefWindow(t_step, step_phase, Foot_state, L_or_R, LF_prev, RF_prev, ...
                      COM_ref, dCOM_ref, ddCOM_ref, ...
                      p_err_sum_x_ref, p_err_sum_y_ref, T_step_ref, p_ref_total, T_step_ref_total, Gi_MPC, Gx_MPC, Gp_MPC);
-
+   
     COM_err = COM - COM_ref;
-        
+
     % Calc control input
     x0 = [theta; COM; w; dCOM];
     [mL, fL, mR, fR] =  nextState(x0, ...
@@ -265,6 +238,7 @@ while 1
     T_step_stored(:, i) = T_step;
     COM_stored(:, i) = COM;
     dCOM_stored(:, i) = dCOM;
+    theta_stored(:,i) = theta;
     COM_ref_stored(:, i) = COM_ref;
     p_stored(:, i) = p_ref_total(:, step_phase);
     mL_stored(:, i) = mL;
@@ -277,8 +251,85 @@ while 1
     etaR_stored(1, i) = etaR_ref_horizon(1);
     ticktock_stored(:, i) = ticktock;
 
-    % Visualization
-    if mod(i, 50) == 1  
+    % Time waits for no one
+    t = t + PARA.dt;
+    t_step = t_step + PARA.dt;
+
+    COM_ref = COM_ref_next; dCOM_ref = dCOM_ref_next; ddCOM_ref = ddCOM_ref_next;
+    p_err_sum_x_ref = p_err_sum_x_ref_next; p_err_sum_y_ref = p_err_sum_y_ref_next;
+    
+    theta = theta_next; w = w_next;
+    COM = COM_next; dCOM = dCOM_next;
+    
+    LF_prev = LF;
+    RF_prev = RF;
+
+    i = i + 1;
+end
+%---
+
+last_tick = i-1;
+
+%-- Plot
+t_stored = t_stored(:, 2:i-1);
+t_step_stored = t_step_stored(:, 2:i-1);
+impact_force_stored = impact_force_stored(:, 2:i-1);
+T_step_stored = T_step_stored(:, 2:i-1);
+COM_stored = COM_stored(:, 2:i-1); COM_ref_stored = COM_ref_stored(:, 2:i-1); dCOM_stored = dCOM_stored(:, 2:i-1);
+theta_stored = theta_stored (:,2:i-1) 
+p_stored = p_stored(:, 2:i-1); 
+mL_stored = mL_stored(:, 2:i-1); fL_stored = fL_stored(:, 2:i-1); mR_stored = mR_stored(:, 2:i-1); fR_stored = fR_stored(:, 2:i-1);
+etaR_stored = etaR_stored(:, 2:i-1); etaL_stored = etaL_stored(:, 2:i-1);
+LF_stored = LF_stored(:, 2:i-1); RF_stored = RF_stored(:, 2:i-1);
+ticktock_stored = ticktock_stored(:, 2:i-1);
+
+%% Animation
+%--- World generation
+if ishandle(10)
+    close(10)
+end
+
+if flag_VISUALIZATION == 1
+    fig_world = figure(10);
+    set(fig_world, 'Position', [1000 540 920 455], 'Renderer', 'OpenGL', 'Color',[1,1,1], 'KeyPressFcn', @printfig);
+    axe = axes('Parent', fig_world);
+    if flag_VISUALIZATION_ROBOT == 1
+        ax = 55; ay = 15;
+    else
+        ax = 0; ay = 89.999;
+    end
+    view([ax ay]);
+    set(axe, 'XLim', [-0.5 0.5], 'YLim', [-0.5 0.5], 'ZLim', [-0.02 1], 'DataAspectRatio', [1 1 1]);
+    grid on; grid minor;
+    xlabel('x [m]'); ylabel('y [m]'); zlabel('z [m]');
+end
+
+i=1;
+flag_EXIT= 0;
+
+while 1
+
+    COM = COM_stored(:,i);
+    COM_ref = COM_ref_stored(:,i);
+    theta = theta_stored (:,i);
+    LF = LF_stored(:,i);
+    RF = RF_stored(:,i);
+
+    if flag_VISUALIZATION == 1
+        % Camera control
+        ax = ax - dx;
+        ay = ay - dy;
+        dx = 0; dy = 0;
+        view([ax, ay]);
+        set(axe,'XLim',[-0.5+COM(1) 0.5+COM(1)],'YLim',[-0.5+COM(2) 0.5+COM(2)],'ZLim',[-0.02 1.0], 'DataAspectRatio', [1 1 1]);
+    end
+
+    if i > last_tick
+        flag_EXIT = 1
+    end
+
+        % Visualization
+    if mod(i, 10) == 1  
         if flag_VISUALIZATION == 1
             if flag_VISUALIZATION_ROBOT == 1
                 %--- Inverse kinematics - COM
@@ -448,6 +499,11 @@ while 1
                 waitforbuttonpress;
                 flag_PAUSE = 0;
             end
+            if flag_EXIT == 1
+                disp("Walking Finish!!");
+                close(10);
+                break;
+            end
 
             delete(visual_COM);
             delete(visual_COM_ref);
@@ -465,34 +521,10 @@ while 1
         end
     end
 
-    % Time waits for no one
-    t = t + PARA.dt;
-    t_step = t_step + PARA.dt;
-
-    COM_ref = COM_ref_next; dCOM_ref = dCOM_ref_next; ddCOM_ref = ddCOM_ref_next;
-    p_err_sum_x_ref = p_err_sum_x_ref_next; p_err_sum_y_ref = p_err_sum_y_ref_next;
-    
-    theta = theta_next; w = w_next;
-    COM = COM_next; dCOM = dCOM_next;
-    
-    LF_prev = LF;
-    RF_prev = RF;
-
     i = i + 1;
 end
-%---
 
-%-- Plot
-t_stored = t_stored(:, 2:i-1);
-t_step_stored = t_step_stored(:, 2:i-1);
-impact_force_stored = impact_force_stored(:, 2:i-1);
-T_step_stored = T_step_stored(:, 2:i-1);
-COM_stored = COM_stored(:, 2:i-1); COM_ref_stored = COM_ref_stored(:, 2:i-1); dCOM_stored = dCOM_stored(:, 2:i-1);
-p_stored = p_stored(:, 2:i-1); 
-mL_stored = mL_stored(:, 2:i-1); fL_stored = fL_stored(:, 2:i-1); mR_stored = mR_stored(:, 2:i-1); fR_stored = fR_stored(:, 2:i-1);
-etaR_stored = etaR_stored(:, 2:i-1); etaL_stored = etaL_stored(:, 2:i-1);
-LF_stored = LF_stored(:, 2:i-1); RF_stored = RF_stored(:, 2:i-1);
-ticktock_stored = ticktock_stored(:, 2:i-1);
+
 %%
 if flag_PLOT == 1
     if ishandle(1)

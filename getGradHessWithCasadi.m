@@ -216,7 +216,12 @@ cineq5_min_v = jacobian(cineq5_min, v);
 %--- Function generation
 disp('FUNCTION GENERATION START')
 
-output_dir = strcat(folder, '/Function/');
+output_dir = fullfile(folder, 'Function');
+if ~exist(output_dir, 'dir')
+    mkdir(output_dir);
+end
+
+cd(output_dir)
 
 J_v_func = Function('J_v_func',   {X, U, X_ref, U_ref, W_Q, W_R}, {J_v});
 J_vv_func = Function('J_vv_func', {X, U, X_ref, U_ref, W_Q, W_R}, {J_vv});
@@ -322,4 +327,6 @@ cineq5_min_v_func.generate('cineq5_min_v_func.c', opts);
 mex cineq5_min_v_func.c
 elapsedTime = toc;
 disp(['CONSTRAINTS CODE GENERATION COMPLETED IN ', num2str(elapsedTime), ' SECONDS'])
+
+cd(folder)
 % ---
