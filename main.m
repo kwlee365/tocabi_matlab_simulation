@@ -12,6 +12,61 @@ folder = fileparts(which('main.m'));
 addpath(genpath(folder));
 %---
 
+%--- Robot setting
+tocabi = importrobot('dyros_tocabi.urdf');
+tocabi.DataFormat = 'column';  
+tocabi.Gravity = [0; 0; -9.81];
+q_dim = 40
+q = [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    
+    0.0;        % L_HipYaw_Joint
+    0.0;        % L_HipRoll_Joint
+   -0.28;       % L_HipPitch_Joint
+    0.6;        % L_Knee_Joint
+   -0.32;       % L_AnklePitch_Joint
+    0.0;        % L_AnkleRoll_Joint
+
+    0.0;        % R_HipYaw_Joint
+    0.0;        % R_HipRoll_Joint
+   -0.28;       % R_HipPitch_Joint
+    0.6;        % R_Knee_Joint
+   -0.32;       % R_AnklePitch_Joint
+    0.0;        % R_AnkleRoll_Joint
+
+    0.0;        % Waist1_Joint
+    0.0;        % Waist2_Joint
+    0.0;        % Upperbody_Joint
+
+    0.3;        % L_Shoulder1_Joint
+    0.174533;   % L_Shoulder2_Joint
+    1.22173;    % L_Shoulder3_Joint
+   -1.27;       % L_Armlink_Joint
+   -1.57;       % L_Elbow_Joint
+    0.0;        % L_Forearm_Joint
+   -1.0;        % L_Wrist1_Joint
+    0.0;        % L_Wrist2_Joint
+
+    0.0;        % Neck_Joint
+    0.0;        % Head_Joint
+
+   -0.3;        % R_Shoulder1_Joint
+   -0.174533;   % R_Shoulder2_Joint
+   -1.22173;    % R_Shoulder3_Joint
+    1.27;       % R_Armlink_Joint
+    1.57;       % R_Elbow_Joint
+    0.0;        % R_Forearm_Joint
+    1.0;        % R_Wrist1_Joint
+    0.0         % R_Wrist2_Joint
+];
+%---
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% User Input %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -306,6 +361,7 @@ end
 
 i=1;
 flag_EXIT= 0;
+force_draw_scale = 0.002;
 
 while 1
 
@@ -321,7 +377,7 @@ while 1
         ay = ay - dy;
         dx = 0; dy = 0;
         view([ax, ay]);
-        set(axe,'XLim',[-0.5+COM(1) 0.5+COM(1)],'YLim',[-0.5+COM(2) 0.5+COM(2)],'ZLim',[-0.02 1.0], 'DataAspectRatio', [1 1 1]);
+        set(axe,'XLim',[-1.0+COM(1) 1.0+COM(1)],'YLim',[-1.0+COM(2) 1.0+COM(2)],'ZLim',[-0.1 2.0], 'DataAspectRatio', [1 1 1]);
     end
 
     if i > last_tick
@@ -329,110 +385,25 @@ while 1
     end
 
         % Visualization
-    if mod(i, 10) == 1  
+    if mod(i, 100) == 1  
         if flag_VISUALIZATION == 1
             if flag_VISUALIZATION_ROBOT == 1
                 %--- Inverse kinematics - COM
                 pCOM = COM; 
                 qPEL = mat2quat(rotX_rad(theta(1))*rotY_rad(-theta(2))); rotmPEL = quat2mat(qPEL);
-                pLF = LF;   qLF = mat2quat(rotX_rad(theta(1))*rotY_rad(-theta(2))); % qLF = [1; 0; 0; 0];
-                pRF = RF;   qRF = mat2quat(rotX_rad(theta(1))*rotY_rad(-theta(2))); % qRF = [1; 0; 0; 0];
-
+                pLF = LF;   
+                qLF = [1, 0, 0, 0];
+                pRF = RF;   
+                qRF = [1, 0, 0, 0];
+            
                 x_target = [pCOM; qPEL'; pLF; qLF'; pRF; qRF'];
                 [q_target, pPEL] = IK_COM(x_target);
-                q1 = q_target(1); q2 = q_target(2); q3 = q_target(3); q4  = q_target(4);  q5  = q_target(5);  q6  = q_target(6); % LLEG
-                q7 = q_target(7); q8 = q_target(8); q9 = q_target(9); q10 = q_target(10); q11 = q_target(11); q12 = q_target(12); % RLEG
-                %---
-
-                %--- Leg
-                T0 = [rotmPEL pPEL; [0 0 0 1]];
-                % Left leg
-                T1_LLEG =      T0*[rotZ_rad(q1) [0 PARA.l1 0]' ; [0 0 0 1]];
-                T2_LLEG = T1_LLEG*[rotX_rad(q2) [0 0 0]' ; [0 0 0 1]];
-                T3_LLEG = T2_LLEG*[rotY_rad(q3) [0 PARA.l2 -PARA.l3]' ; [0 0 0 1]];
-                T4_LLEG = T3_LLEG*[rotY_rad(q4) [0 0 -PARA.l4]' ; [0 0 0 1]];
-                T5_LLEG = T4_LLEG*[rotY_rad(q5) [0 0 -PARA.l5]' ; [0 0 0 1]];
-                T6_LLEG = T5_LLEG*[rotX_rad(q6) [0 0 0]' ; [0 0 0 1]];
-                Te_LLEG = T6_LLEG*[eye(3) [0 0 -PARA.l6]' ; [0 0 0 1]];
-
-                link01_LLEG_x = [T0(1,4) T1_LLEG(1,4)];    link01_LLEG_y = [T0(2,4) T1_LLEG(2,4)];   link01_LLEG_z = [T0(3,4) T1_LLEG(3,4)];
-                link12_LLEG_x = [T1_LLEG(1,4) T2_LLEG(1,4)];	link12_LLEG_y = [T1_LLEG(2,4) T2_LLEG(2,4)];   link12_LLEG_z = [T1_LLEG(3,4) T2_LLEG(3,4)];
-                link23_LLEG_x = [T2_LLEG(1,4) T3_LLEG(1,4)];	link23_LLEG_y = [T2_LLEG(2,4) T3_LLEG(2,4)];   link23_LLEG_z = [T2_LLEG(3,4) T3_LLEG(3,4)];
-                link34_LLEG_x = [T3_LLEG(1,4) T4_LLEG(1,4)];	link34_LLEG_y = [T3_LLEG(2,4) T4_LLEG(2,4)];   link34_LLEG_z = [T3_LLEG(3,4) T4_LLEG(3,4)];
-                link45_LLEG_x = [T4_LLEG(1,4) T5_LLEG(1,4)];	link45_LLEG_y = [T4_LLEG(2,4) T5_LLEG(2,4)];   link45_LLEG_z = [T4_LLEG(3,4) T5_LLEG(3,4)];
-                link56_LLEG_x = [T5_LLEG(1,4) T6_LLEG(1,4)];	link56_LLEG_y = [T5_LLEG(2,4) T6_LLEG(2,4)];   link56_LLEG_z = [T5_LLEG(3,4) T6_LLEG(3,4)];
-                link6e_LLEG_x = [T6_LLEG(1,4) Te_LLEG(1,4)];	link6e_LLEG_y = [T6_LLEG(2,4) Te_LLEG(2,4)];   link6e_LLEG_z = [T6_LLEG(3,4) Te_LLEG(3,4)];
                 
-                link01_LLEG = cylinder(axe, [link01_LLEG_x; link01_LLEG_y; link01_LLEG_z]', 0.005, [0 0 0], 1, 20);
-                link23_LLEG = cylinder(axe, [link23_LLEG_x; link23_LLEG_y; link23_LLEG_z]', 0.005, [0 0 0], 1, 20);
-                link34_LLEG = cylinder(axe, [link34_LLEG_x; link34_LLEG_y; link34_LLEG_z]', 0.005, [0 0 0], 1, 20);
-                link45_LLEG = cylinder(axe, [link45_LLEG_x; link45_LLEG_y; link45_LLEG_z]', 0.005, [0 0 0], 1, 20);
-                link6e_LLEG = cylinder(axe, [link6e_LLEG_x; link6e_LLEG_y; link6e_LLEG_z]', 0.005, 'k', 1, 20);
-     
-                T1_RLEG =      T0*[rotZ_rad(q7) [0 -PARA.l1 0]' ; [0 0 0 1]];
-                T2_RLEG = T1_RLEG*[rotX_rad(q8) [0 0 0]' ; [0 0 0 1]];
-                T3_RLEG = T2_RLEG*[rotY_rad(q9) [0 -PARA.l2 -PARA.l3]' ; [0 0 0 1]];
-                T4_RLEG = T3_RLEG*[rotY_rad(q10) [0 0 -PARA.l4]' ; [0 0 0 1]];
-                T5_RLEG = T4_RLEG*[rotY_rad(q11) [0 0 -PARA.l5]' ; [0 0 0 1]];
-                T6_RLEG = T5_RLEG*[rotX_rad(q12) [0 0 0]' ; [0 0 0 1]];
-                Te_RLEG = T6_RLEG*[eye(3) [0 0 -PARA.l6]' ; [0 0 0 1]];
+                q([1:4],1) = qPEL;
+                q([5:7],1) = pPEL;
+                q([8:19],1)  = q_target;
 
-                link01_RLEG_x = [T0(1,4) T1_RLEG(1,4)];    link01_RLEG_y = [T0(2,4) T1_RLEG(2,4)];   link01_RLEG_z = [T0(3,4) T1_RLEG(3,4)];
-                link12_RLEG_x = [T1_RLEG(1,4) T2_RLEG(1,4)];	link12_RLEG_y = [T1_RLEG(2,4) T2_RLEG(2,4)];   link12_RLEG_z = [T1_RLEG(3,4) T2_RLEG(3,4)];
-                link23_RLEG_x = [T2_RLEG(1,4) T3_RLEG(1,4)];	link23_RLEG_y = [T2_RLEG(2,4) T3_RLEG(2,4)];   link23_RLEG_z = [T2_RLEG(3,4) T3_RLEG(3,4)];
-                link34_RLEG_x = [T3_RLEG(1,4) T4_RLEG(1,4)];	link34_RLEG_y = [T3_RLEG(2,4) T4_RLEG(2,4)];   link34_RLEG_z = [T3_RLEG(3,4) T4_RLEG(3,4)];
-                link45_RLEG_x = [T4_RLEG(1,4) T5_RLEG(1,4)];	link45_RLEG_y = [T4_RLEG(2,4) T5_RLEG(2,4)];   link45_RLEG_z = [T4_RLEG(3,4) T5_RLEG(3,4)];
-                link56_RLEG_x = [T5_RLEG(1,4) T6_RLEG(1,4)];	link56_RLEG_y = [T5_RLEG(2,4) T6_RLEG(2,4)];   link56_RLEG_z = [T5_RLEG(3,4) T6_RLEG(3,4)];
-                link6e_RLEG_x = [T6_RLEG(1,4) Te_RLEG(1,4)];	link6e_RLEG_y = [T6_RLEG(2,4) Te_RLEG(2,4)];   link6e_RLEG_z = [T6_RLEG(3,4) Te_RLEG(3,4)];
-
-                link01_RLEG = cylinder(axe, [link01_RLEG_x; link01_RLEG_y; link01_RLEG_z]', 0.005, [0 0 0], 1, 20);
-                link23_RLEG = cylinder(axe, [link23_RLEG_x; link23_RLEG_y; link23_RLEG_z]', 0.005, [0 0 0], 1, 20);
-                link34_RLEG = cylinder(axe, [link34_RLEG_x; link34_RLEG_y; link34_RLEG_z]', 0.005, [0 0 0], 1, 20);
-                link45_RLEG = cylinder(axe, [link45_RLEG_x; link45_RLEG_y; link45_RLEG_z]', 0.005, [0 0 0], 1, 20);
-                link6e_RLEG = cylinder(axe, [link6e_RLEG_x; link6e_RLEG_y; link6e_RLEG_z]', 0.005, 'k', 1, 20);
-                %---
-
-                %--- Torso
-                TORSO_x = 0.12;   % [m]
-                TORSO_y = 0.2;   % [m]
-                TORSO_z = 0.22;   % [m]
-
-                T1_TORSO = T0*[eye(3) [0 0 PARA.l0-0.5*TORSO_z]'; [0 0 0 1]];
-                T2_TORSO_1 = T0*[eye(3) [ 0.5*TORSO_x  0.5*TORSO_y PARA.l0+0.5*TORSO_z]'; [0 0 0 1]];
-                T2_TORSO_2 = T0*[eye(3) [-0.5*TORSO_x  0.5*TORSO_y PARA.l0+0.5*TORSO_z]'; [0 0 0 1]];
-                T2_TORSO_3 = T0*[eye(3) [-0.5*TORSO_x -0.5*TORSO_y PARA.l0+0.5*TORSO_z]'; [0 0 0 1]];
-                T2_TORSO_4 = T0*[eye(3) [ 0.5*TORSO_x -0.5*TORSO_y PARA.l0+0.5*TORSO_z]'; [0 0 0 1]];
-                T3_TORSO_1 = T0*[eye(3) [ 0.5*TORSO_x  0.5*TORSO_y PARA.l0-0.5*TORSO_z]'; [0 0 0 1]];
-                T3_TORSO_2 = T0*[eye(3) [-0.5*TORSO_x  0.5*TORSO_y PARA.l0-0.5*TORSO_z]'; [0 0 0 1]];
-                T3_TORSO_3 = T0*[eye(3) [-0.5*TORSO_x -0.5*TORSO_y PARA.l0-0.5*TORSO_z]'; [0 0 0 1]];
-                T3_TORSO_4 = T0*[eye(3) [ 0.5*TORSO_x -0.5*TORSO_y PARA.l0-0.5*TORSO_z]'; [0 0 0 1]];
-
-                link01_TORSO_x = [T0(1,4) T1_TORSO(1,4)];    link01_TORSO_y = [T0(2,4) T1_TORSO(2,4)];   link01_TORSO_z = [T0(3,4) T1_TORSO(3,4)];
-                link2_TORSO_x = [T2_TORSO_1(1,4) T2_TORSO_2(1,4) T2_TORSO_3(1,4) T2_TORSO_4(1,4) T2_TORSO_1(1,4)];
-                link2_TORSO_y = [T2_TORSO_1(2,4) T2_TORSO_2(2,4) T2_TORSO_3(2,4) T2_TORSO_4(2,4) T2_TORSO_1(2,4)];
-                link2_TORSO_z = [T2_TORSO_1(3,4) T2_TORSO_2(3,4) T2_TORSO_3(3,4) T2_TORSO_4(3,4) T2_TORSO_1(3,4)];
-                link3_TORSO_x = [T3_TORSO_1(1,4) T3_TORSO_2(1,4) T3_TORSO_3(1,4) T3_TORSO_4(1,4) T3_TORSO_1(1,4)];
-                link3_TORSO_y = [T3_TORSO_1(2,4) T3_TORSO_2(2,4) T3_TORSO_3(2,4) T3_TORSO_4(2,4) T3_TORSO_1(2,4)];
-                link3_TORSO_z = [T3_TORSO_1(3,4) T3_TORSO_2(3,4) T3_TORSO_3(3,4) T3_TORSO_4(3,4) T3_TORSO_1(3,4)];
-                link41_TORSO_x = [T2_TORSO_1(1,4) T3_TORSO_1(1,4)]; link41_TORSO_y = [T2_TORSO_1(2,4) T3_TORSO_1(2,4)]; link41_TORSO_z = [T2_TORSO_1(3,4) T3_TORSO_1(3,4)];
-                link42_TORSO_x = [T2_TORSO_2(1,4) T3_TORSO_2(1,4)]; link42_TORSO_y = [T2_TORSO_2(2,4) T3_TORSO_2(2,4)]; link42_TORSO_z = [T2_TORSO_2(3,4) T3_TORSO_2(3,4)];
-                link43_TORSO_x = [T2_TORSO_3(1,4) T3_TORSO_3(1,4)]; link43_TORSO_y = [T2_TORSO_3(2,4) T3_TORSO_3(2,4)]; link43_TORSO_z = [T2_TORSO_3(3,4) T3_TORSO_3(3,4)];
-                link44_TORSO_x = [T2_TORSO_4(1,4) T3_TORSO_4(1,4)]; link44_TORSO_y = [T2_TORSO_4(2,4) T3_TORSO_4(2,4)]; link44_TORSO_z = [T2_TORSO_4(3,4) T3_TORSO_4(3,4)];
-
-                link01_TORSO = cylinder(axe, [link01_TORSO_x; link01_TORSO_y; link01_TORSO_z]', 0.005, [0, 0, 0], 1, 20);
-                link2_TORSO_1 = cylinder(axe, [link2_TORSO_x(1:2); link2_TORSO_y(1:2); link2_TORSO_z(1:2)]', 0.005, [0, 0, 0], 1, 20);
-                link2_TORSO_2 = cylinder(axe, [link2_TORSO_x(2:3); link2_TORSO_y(2:3); link2_TORSO_z(2:3)]', 0.005, [0, 0, 0], 1, 20);
-                link2_TORSO_3 = cylinder(axe, [link2_TORSO_x(3:4); link2_TORSO_y(3:4); link2_TORSO_z(3:4)]', 0.005, [0, 0, 0], 1, 20);
-                link2_TORSO_4 = cylinder(axe, [[link2_TORSO_x(4) link2_TORSO_x(1)]; [link2_TORSO_y(4) link2_TORSO_y(1)]; [link2_TORSO_z(4) link2_TORSO_z(1)]]', 0.005, [0, 0, 0], 1, 20);
-                link3_TORSO_1 = cylinder(axe, [link3_TORSO_x(1:2); link3_TORSO_y(1:2); link3_TORSO_z(1:2)]', 0.005, [0, 0, 0], 1, 20);
-                link3_TORSO_2 = cylinder(axe, [link3_TORSO_x(2:3); link3_TORSO_y(2:3); link3_TORSO_z(2:3)]', 0.005, [0, 0, 0], 1, 20);
-                link3_TORSO_3 = cylinder(axe, [link3_TORSO_x(3:4); link3_TORSO_y(3:4); link3_TORSO_z(3:4)]', 0.005, [0, 0, 0], 1, 20);
-                link3_TORSO_4 = cylinder(axe, [[link3_TORSO_x(4) link3_TORSO_x(1)]; [link3_TORSO_y(4) link3_TORSO_y(1)]; [link3_TORSO_z(4) link3_TORSO_z(1)]]', 0.005, [0, 0, 0], 1, 20);
-                link4_TORSO_1 = cylinder(axe, [link41_TORSO_x; link41_TORSO_y; link41_TORSO_z]', 0.005, [0, 0, 0], 1, 20);
-                link4_TORSO_2 = cylinder(axe, [link42_TORSO_x; link42_TORSO_y; link42_TORSO_z]', 0.005, [0, 0, 0], 1, 20);
-                link4_TORSO_3 = cylinder(axe, [link43_TORSO_x; link43_TORSO_y; link43_TORSO_z]', 0.005, [0, 0, 0], 1, 20);
-                link4_TORSO_4 = cylinder(axe, [link44_TORSO_x; link44_TORSO_y; link44_TORSO_z]', 0.005, [0, 0, 0], 1, 20);
-                %---
+                show(tocabi,q,PreservePlot=false,FastUpdate=true);
             end
 
             % COM
@@ -442,57 +413,11 @@ while 1
             visual_COM_ref = animatedline('Marker', 'o', 'MarkerFaceColor', 'red', 'MarkerEdgeColor', 'black');
             addpoints(visual_COM_ref, COM_ref(1), COM_ref(2), COM_ref(3));
         
-            % LF
-            force_draw_scale = 5e-4;
-            visual_LF_p1 = LF + [ 0.5*PARA.Foot_length;  0.5*PARA.Foot_width; 0];
-            visual_LF_p2 = LF + [-0.5*PARA.Foot_length;  0.5*PARA.Foot_width; 0];
-            visual_LF_p3 = LF + [-0.5*PARA.Foot_length; -0.5*PARA.Foot_width; 0];
-            visual_LF_p4 = LF + [ 0.5*PARA.Foot_length; -0.5*PARA.Foot_width; 0];
-            visual_LF_x = [visual_LF_p1(1) visual_LF_p2(1) visual_LF_p3(1) visual_LF_p4(1) visual_LF_p1(1)];
-            visual_LF_y = [visual_LF_p1(2) visual_LF_p2(2) visual_LF_p3(2) visual_LF_p4(2) visual_LF_p1(2)];
-            visual_LF_z = [visual_LF_p1(3) visual_LF_p2(3) visual_LF_p3(3) visual_LF_p4(3) visual_LF_p1(3)];
-    
             hold on
-            visual_fL = quiver3(LF(1), LF(2), LF(3), fL(1) * force_draw_scale, fL(2) * force_draw_scale, fL(3) * force_draw_scale, 0, ...
-                                'Color', 'r', 'LineWidth', 1.5, 'MaxHeadSize', 1);
-            if (Foot_state == 1)
-                visual_LF = animatedline(visual_LF_x, visual_LF_y, visual_LF_z, 'color', color_LF, 'LineWidth', 1.5);
-                visual_LF_center = animatedline('Marker', 'o', 'MarkerFaceColor', color_LF, 'MarkerEdgeColor', 'k', 'MarkerSize', 5);
-                addpoints(visual_LF_center, LF(1), LF(2), LF(3));
-            elseif (Foot_state == -1)
-                visual_LF = animatedline(visual_LF_x, visual_LF_y, visual_LF_z, 'color', color_LF, 'LineWidth', 1.5);
-                visual_LF_center = animatedline('Marker', 'o', 'MarkerFaceColor', color_LF, 'MarkerEdgeColor', 'k', 'MarkerSize', 5);
-                addpoints(visual_LF_center, LF(1), LF(2), LF(3));
-            else
-                visual_LF = animatedline(visual_LF_x, visual_LF_y, visual_LF_z, 'color', color_LF, 'LineWidth', 1.5);
-                visual_LF_center = animatedline('Marker', 'o', 'MarkerFaceColor', color_LF, 'MarkerEdgeColor', 'k', 'MarkerSize', 5);
-                addpoints(visual_LF_center, LF(1), LF(2), LF(3));
-            end
-            % RF
-            visual_RF_p1 = RF + [ 0.5*PARA.Foot_length;  0.5*PARA.Foot_width; 0];
-            visual_RF_p2 = RF + [-0.5*PARA.Foot_length;  0.5*PARA.Foot_width; 0];
-            visual_RF_p3 = RF + [-0.5*PARA.Foot_length; -0.5*PARA.Foot_width; 0];
-            visual_RF_p4 = RF + [ 0.5*PARA.Foot_length; -0.5*PARA.Foot_width; 0];
-            visual_RF_x = [visual_RF_p1(1) visual_RF_p2(1) visual_RF_p3(1) visual_RF_p4(1) visual_RF_p1(1)];
-            visual_RF_y = [visual_RF_p1(2) visual_RF_p2(2) visual_RF_p3(2) visual_RF_p4(2) visual_RF_p1(2)];
-            visual_RF_z = [visual_RF_p1(3) visual_RF_p2(3) visual_RF_p3(3) visual_RF_p4(3) visual_RF_p1(3)];
-            hold on
-            visual_fR = quiver3(RF(1), RF(2), RF(3), fR(1) * force_draw_scale, fR(2) * force_draw_scale, fR(3) * force_draw_scale, 0, ...
-                                'Color', 'r', 'LineWidth', 1.5, 'MaxHeadSize', 1);
-            if (Foot_state == 1)
-                visual_RF = animatedline(visual_RF_x, visual_RF_y, visual_RF_z, 'color', color_RF, 'LineWidth', 1.5);
-                visual_RF_center = animatedline('Marker', 'o', 'MarkerFaceColor', color_RF, 'MarkerEdgeColor', 'k', 'MarkerSize', 5);
-                addpoints(visual_RF_center, RF(1), RF(2), RF(3));       
-            elseif (Foot_state == -1)
-                visual_RF = animatedline(visual_RF_x, visual_RF_y, visual_RF_z, 'color', color_RF, 'LineWidth', 1.5);
-                visual_RF_center = animatedline('Marker', 'o', 'MarkerFaceColor', color_RF, 'MarkerEdgeColor', 'k', 'MarkerSize', 5);
-                addpoints(visual_RF_center, RF(1), RF(2), RF(3));       
-            else
-                visual_RF = animatedline(visual_RF_x, visual_RF_y, visual_RF_z, 'color', color_RF, 'LineWidth', 1.5);
-                visual_RF_center = animatedline('Marker', 'o', 'MarkerFaceColor', color_RF, 'MarkerEdgeColor', 'k', 'MarkerSize', 5);
-                addpoints(visual_RF_center, RF(1), RF(2), RF(3));           
-            end           
-
+            % visual_fL = quiver3(LF(1) , LF(2), LF(3), fL(1) * force_draw_scale, fL(2) * force_draw_scale, fL(3) * force_draw_scale, 0, ...
+            %                     'Color', 'r', 'LineWidth', 1.5, 'MaxHeadSize', 1);
+            % visual_fR = quiver3(RF(1), RF(2), RF(3), fR(1) * force_draw_scale, fR(2) * force_draw_scale, fR(3) * force_draw_scale, 0, ...
+            %                     'Color', 'r', 'LineWidth', 1.5, 'MaxHeadSize', 1);        
             drawnow;
             if flag_PAUSE == 1
                 disp('Walking pause!!');
@@ -507,17 +432,7 @@ while 1
 
             delete(visual_COM);
             delete(visual_COM_ref);
-            delete(visual_LF); delete(visual_RF);
-            delete(visual_LF_center); delete(visual_RF_center);
-            delete(visual_fL); delete(visual_fR);
-            if flag_VISUALIZATION_ROBOT == 1
-                delete(link01_LLEG); delete(link23_LLEG); delete(link34_LLEG); delete(link45_LLEG); delete(link6e_LLEG); 
-                delete(link01_RLEG); delete(link23_RLEG); delete(link34_RLEG); delete(link45_RLEG); delete(link6e_RLEG); 
-                delete(link01_TORSO); 
-                delete(link2_TORSO_1); delete(link2_TORSO_2); delete(link2_TORSO_3); delete(link2_TORSO_4); 
-                delete(link3_TORSO_1); delete(link3_TORSO_2); delete(link3_TORSO_3); delete(link3_TORSO_4); 
-                delete(link4_TORSO_1); delete(link4_TORSO_2); delete(link4_TORSO_3); delete(link4_TORSO_4); 
-            end
+            % delete(visual_fL); delete(visual_fR);
         end
     end
 
@@ -709,81 +624,3 @@ function printfig(~,evnt)
     end
 end
 
-%%
-clc; close all
-
-figure()
-subplot(3,1,1)
-plot(t_stored, COM_stored(1,:))
-hold on
-grid on
-plot(t_stored, COM_ref_stored(1,:))
-plot(t_stored, p_stored(1,:))
-legend('COM', 'COM REF', 'ZMP')
-title('X')
-subplot(3,1,2)
-plot(t_stored, COM_stored(2,:))
-hold on
-grid on
-plot(t_stored, COM_ref_stored(2,:))
-plot(t_stored, p_stored(2,:))
-legend('COM', 'COM REF', 'ZMP')
-title('Y')
-subplot(3,1,3)
-plot(t_stored, COM_stored(3,:))
-hold on
-grid on
-plot(t_stored, COM_ref_stored(3,:))
-legend('COM', 'COM REF')
-title('Z')
-
-figure()
-subplot(4,1,1)
-plot(t_stored, mL_stored(1,:))
-legend('mL')
-title('X')
-subplot(4,1,2)
-plot(t_stored, fL_stored(1,:))
-legend('fL')
-subplot(4,1,3)
-plot(t_stored, mR_stored(1,:))
-legend('mR')
-subplot(4,1,4)
-plot(t_stored, fR_stored(1,:))
-legend('fR')
-figure()
-subplot(4,1,1)
-plot(t_stored, mL_stored(2,:))
-legend('mL')
-title('Y')
-subplot(4,1,2)
-plot(t_stored, fL_stored(2,:))
-legend('fL')
-subplot(4,1,3)
-plot(t_stored, mR_stored(2,:))
-legend('mR')
-subplot(4,1,4)
-plot(t_stored, fR_stored(2,:))
-legend('fR')
-figure()
-subplot(4,1,1)
-plot(t_stored, mL_stored(3,:))
-legend('mL')
-title('Z')
-subplot(4,1,2)
-plot(t_stored, fL_stored(3,:))
-legend('fL')
-subplot(4,1,3)
-plot(t_stored, mR_stored(3,:))
-legend('mR')
-subplot(4,1,4)
-plot(t_stored, fR_stored(3,:))
-legend('fR')
-
-figure()
-subplot(2,1,1)
-plot(t_stored, etaL_stored(1,:))
-legend('etaL')
-subplot(2,1,2)
-plot(t_stored, etaR_stored(1,:))
-legend('etaR')

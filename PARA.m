@@ -16,7 +16,7 @@ classdef PARA < handle
         dt = 0.001;
         
         % Robot
-        pelvis_width = 0.22;
+        pelvis_width = 0.25;
         zc = 0.73;
         wn = sqrt(PARA.g/PARA.zc);
         Foot_length = 0.18;

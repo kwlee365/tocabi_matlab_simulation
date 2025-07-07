@@ -2,6 +2,15 @@
   <mujoco>
       <compiler meshdir="./meshes/" balanceinertia="true"/>
   </mujoco>
+
+  <link name="world"/>
+
+  <joint name="floating_base" type="floating">
+    <parent link="world"/>
+    <child link="Pelvis_Link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
   <link
     name="Pelvis_Link">
     <inertial>
@@ -1367,11 +1376,11 @@
     </inertial>
     <visual>
       <origin
-        xyz="0 0 0"
+        xyz="0.02 0 -0.6"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://tocabi_description/meshes/head.STL" />
+          filename="package://tocabi_description/meshes/head_revised.STL" />
       </geometry>
       <material
         name="">

@@ -25,7 +25,7 @@ function [q_target, pPEL] = IK_COM(x_target)
             break
         end
     end
-    pPEL = [pPEL(1); pPEL(2); 0.7];
-    % pPEL = [pPEL(1); pPEL(2); pPEL(3)];
+    % pPEL = [pPEL(1); pPEL(2); 0.7];
+    pPEL = [pPEL(1); pPEL(2); pPEL(3)];
     q_target = IK_PEL([pPEL; qPEL_target; pLF_target; qLF_target; pRF_target; qRF_target]);
 end
